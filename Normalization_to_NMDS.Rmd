@@ -1,0 +1,900 @@
+
+---
+title: "Nittedal Diet Analyses"
+author: "Reed McKay"
+date: "4 9 2021"
+output: html_document
+---
+
+
+
+### Previous versions of the script: 
+
+title: "IBBM Diet Analyses"
+author: "Reed McKay"
+date: "4 5 2021"
+output: html_document
+
+
+title: "Filter/Normal_NMDS_lmer_batsandbugs"
+author: "Reed April McKay"
+date: "16 2 2021"
+output: html_document
+
+
+### Prepare work space and load packages 
+
+```{r setup, include=FALSE}
+library(rlang)
+library(cowplot)
+library(tidyverse) #
+library(readxl) #
+library(iNEXT) # 
+library(vegan) #
+library(reshape2) 
+library(ggpubr) # 
+library(cowplot) # 
+library(devtools) #
+library(lme4) 
+library(phyloseq)
+library(plyr)
+library(Rcpp)
+library(vctrs)
+library(metagMisc)
+library(DHARMa)
+library(sjPlot)
+library(effects)
+library(qiime2R)
+library(BiocManager)
+library(patchwork)
+library(microViz)
+library(beepr)
+library(microViz)
+library(mixOmics)
+library(ade4)
+library(nlme)
+
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+
+# The following initializes usage of Bioc devel
+# BiocManager::install(version='devel')
+
+library(devtools) # Load the devtools package
+# install_github("microbiome/microbiome") # Install the package
+# devtools::install_github("microsud/microbiomeutilities")
+library(microbiome)
+library(microbiomeutilities)
+library(MASS)
+#devtools::install_github("jbisanz/qiime2R")
+library(qiime2R)
+
+# Installing from CRAN
+#install.packages("sorvi")
+library(sorvi)
+# Installing from Github
+#install_github("antagomir/netresponse")
+library(netresponse)
+
+getwd()
+# C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Mbra-vs-Mmys-diet-"
+
+output <- "~/1. PhD_Main/GitHub_link/Nittedal/Mbra-vs-Mmys-diet-/Outputs"
+
+file.name <- "Nittedal_modeling pt1"
+
+todays_date <- Sys.Date()
+ 
+dir.name <- str_c(output,"/", file.name, "_", todays_date)
+dir.name
+ 
+output_today <- dir.name
+output_today
+
+dir.create(output_today)
+output_today
+
+```
+
+### Import data, create phyloseq object, convert OTU table to presence/absence (optional)
+
+```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+
+phylo <- qza_to_phyloseq(
+  features="~/1. PhD_Main/GitHub_link/Nittedal/Nittedal/Reference/bat-feat-tab-clean.qza",          
+   #it makes sense to use a filtered table, as sPLS-DA can't handle rare features very well
+  taxonomy="~/1. PhD_Main/GitHub_link/Nittedal/Nittedal/Reference/bat-classified-repr-seq.qza", 
+  metadata="~/1. PhD_Main/GitHub_link/Nittedal/Nittedal/Reference/bat-metadata_clean.tsv")
+
+phylo #shows what our physeq object contains
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 3629 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]
+
+#we remove all features that are unassigned on phylum level
+phylos <- subset_taxa(phylo, Phylum != "NA")
+
+phylos   #shows what our physeq object contains
+#phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 3629 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]
+#now we extract the data we need in the exact format that we need
+
+#we remove all features that are unassigned on genus level
+phyloseq <- subset_taxa(phylo, Genus != "NA")
+
+phyloseq   #shows what our physeq object contains
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 2536 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 2536 taxa by 7 taxonomic ranks ]
+
+
+
+  batsbugs <- phyloseq %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
+  
+#   phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1950 taxa and 47 samples ]
+# sample_data() Sample Data:       [ 47 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1950 taxa by 7 taxonomic ranks ]
+  
+#Inspect the Phyloseq object:
+  
+  sample_names(batsbugs)
+  rank_names(batsbugs)
+  sample_variables(batsbugs)
+  
+  sort(colSums(otu_table(batsbugs)))
+  quantile(colSums(otu_table(batsbugs)))
+#     0%    25%    50%    75%   100% 
+#   14.0 2374.0 3659.0 3957.5 4000.0 
+```
+
+
+### Filter and Normalize
+```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+
+#Filter1 = batbugs1 
+
+#Remove OTUs with less than 10 sequence reads 
+batsbugs1 <- prune_taxa(taxa_sums(batsbugs) >= 10, batsbugs) 
+batsbugs1
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1393 taxa and 47 samples ]
+# sample_data() Sample Data:       [ 47 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1393 taxa by 7 taxonomic ranks ]
+
+ntaxa(batsbugs1)
+quantile(colSums(otu_table(batsbugs1)))
+# quantile(colSums(otu_table(batsbugs1)))
+  #   0%    25%    50%    75%   100% 
+  # 13.0 2337.5 3628.0 3897.5 4000.0 
+
+sort(colSums(otu_table(batsbugs1)))
+
+# Remove samples with unusually small amounts of reads  (less tan 600)
+# Removed four samples:     13B   3B  49B   5B  11B
+# (recommendation from Lisa Lunde)
+
+batsbugs2<-prune_samples(colSums(otu_table(batsbugs1))>=600,batsbugs1) 
+batsbugs2
+#phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1393 taxa and 42 samples ]
+# sample_data() Sample Data:       [ 42 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1393 taxa by 7 taxonomic ranks ]
+
+#removed 5 samples, check that this worked: 
+sort(colSums(otu_table(batsbugs2)))
+
+quantile(colSums(otu_table(batsbugs2)))
+ #     0%     25%     50%     75%    100% 
+ # 838.00 2947.50 3693.50 3921.75 4000.00
+
+
+# Normalizing = batsbugs3
+
+# Quick and dirty normalization of data as an alternative to rarefaction 
+# (how does splsda replace this? )
+  total = median(sample_sums(batsbugs1))
+  standf = function(x, t=total) round(t * (x / sum(x)))
+  batsbugs3 = transform_sample_counts(batsbugs2, standf)
+
+quantile(colSums(otu_table(batsbugs3)))
+#  0%  25%  50%  75% 100% 
+# 3622 3628 3628 3629 3632  
+
+#See new range in reads for each sample 
+sort(colSums(otu_table(batsbugs3)))
+batsbugs3
+
+
+# Compare abundance across phyloseq objects 
+
+p0 <- plot_bar(batsbugs, x = "bat.sp", fill = "Order") +
+                geom_bar(stat="identity") + theme_bw() + ggtitle("Raw")
+p0 # raw data 
+
+p1 <- plot_bar(batsbugs1, x = "bat.sp", fill = "Order") + 
+                geom_bar(stat="identity") + theme_bw() + ggtitle("OTUs > 10 reads")
+p1 # removed OTUs with less than 10 reads 
+
+p2 <- plot_bar(batsbugs2, x = "bat.sp", fill = "Order") +
+                geom_bar(stat="identity") + theme_bw() + ggtitle("Samples > 600 reads")
+p2 # removed samples with less than 600 reads 
+
+p3 <- plot_bar(batsbugs3, x = "bat.sp", fill = "Order") +  
+                geom_bar(stat="identity") + theme_bw() + ggtitle("Normalized")
+p3 # Normalized 
+
+## Not able to plot this in a grid with cowplot::plot_grid at the moment. annoying. 
+```
+
+Relative abundance representation
+Pooled samples
+Normalized ad filtered data 
+Top Orders 
+
+https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/composition-plots.html
+
+```{r}
+
+## MICROBIOMEUTILITIES IS THE NEW ONE TO USE! 
+
+bb3.fam <- aggregate_top_taxa2(batsbugs3, "Family", top = 70)
+
+plot.composition.CountAbun <- plot_composition(bb3.fam) + 
+  theme_bw() +ggtitle("Top 70 famillies")
+  
+
+plot.composition.CountAbun
+
+
+
+#Make relative abundance 
+
+
+bb.fam.rel <- microbiome::transform(bb3.fam, "compositional")
+
+plot_bar(bb.fam.rel, x="bat.sp", fill = "Family")+ xlab(NULL) + geom_bar(stat="identity") 
+
+
+
+plot_composition(bb.fam.rel, fill = "family", average_by = "bat.sp") + labs( x = "Bat Species", y = "Relative abundance", title = "Relative Abundance of Prey Item by Family") 
+
+
+```
+
+Now for order
+
+```{r}
+
+bb3.order <- aggregate_top_taxa2(batsbugs3, "Order", top = 45)
+
+plot.composition.CountAbun <- plot_composition(bb3.order) + 
+  theme_bw() + ggtitle("Top 45 orders") 
+  
+
+plot.composition.CountAbun
+
+
+
+#Make relative abundance 
+
+
+bb.order.rel <- transform(bb3.order, "compositional")
+
+plot_bar(bb.order.rel, x="bat.sp", fill = "Order")+ xlab(NULL) + 
+  geom_bar(stat="identity") + 
+  labs( y = "Relative abundance",
+  title = "Relative Abundance of Prey Item by Order")  
+
+
+
+plot_composition(bb.order.rel, fill = "Order", average_by = "bat.sp") + 
+  labs( x = "Bat Species", y = "Relative abundance", 
+        title = "Relative Abundance of Prey Item by Order") +
+  theme_bw()
+
+plot.composition.relAbun <- plot_composition(bb.order.rel, sample.sort = "bat.sp") 
+print(plot.composition.relAbun)
+
+```
+
+
+
+## Summarizing and visualizing RAW data between the two bat species
+
+*You can more easily see the differences* in this Google Sheet where I copied these summaries: https://docs.google.com/spreadsheets/d/11VWNq5zbMou82J_H8RsgL3eJWfj56kPKXcp8vh6KHcA/edit#gid=0 
+
+*Mostly, there aren't any difference except in abundance of prey items for these top 10 OTUs* 
+
+How many prey items for MBRA and MMYS in the raw data? 
+
+```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+ntaxa(batsbugs)
+# 1950
+bb_prune <- prune_taxa(taxa_sums(batsbugs3) > 0, batsbugs3)
+ntaxa(bb_prune)
+# 1370
+
+
+#Subset the raw data by bat species and summarize OTU abundance
+
+# MBRA 
+
+MBRA <- subset_samples(batsbugs, bat.sp == "MBRA")
+MBRA
+# otu_table()   OTU Table:         [ 1950 taxa and 16 samples ]
+# sample_data() Sample Data:       [ 16 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1950 taxa by 7 taxonomic ranks ]
+
+B_prune = prune_taxa(taxa_sums(MBRA) > 0, MBRA)
+ntaxa(B_prune)
+B_prune
+
+#Btaxaorder 
+
+# Diptera", 
+ "#126782"
+
+#"Hemiptera", 
+  "#A5E1F3"
+  
+#"Hymenoptera", 
+  "#023047"
+
+#"Lepidoptera", 
+  "#425326"
+   
+#"Neuroptera", 
+   "#817425"
+
+#"Trichoptera"
+   "#FB8500"
+
+plot_taxa_prevalence(
+  B_prune, "Order") + 
+  scale_color_manual(values=c("#126782", "#A5E1F3", "#023047", "#425326", "#817425",  "#FB8500")) 
+
+
+quantile(colSums(otu_table(MBRA)))
+sort(colSums(otu_table(MBRA)))
+
+######################################################
+
+#MMYS
+
+MMYS <- subset_samples(batsbugs, bat.sp == "MMYS")
+MMYS
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1950 taxa and 31 samples ]
+# sample_data() Sample Data:       [ 31 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1950 taxa by 7 taxonomic ranks ]
+
+M_prune = prune_taxa(taxa_sums(MMYS) > 0, MMYS)
+ntaxa(M_prune)
+M_prune
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1249 taxa and 31 samples ]
+# sample_data() Sample Data:       [ 31 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1249 taxa by 7 taxonomic ranks ]
+
+#Mtaxaorder <- 
+#"Coleoptera", 
+ "#092B34"
+ 
+# Diptera", 
+ "#126782"
+
+#"Hemiptera", 
+  "#A5E1F3"
+  
+#"Hymenoptera", 
+  "#023047"
+
+#"Lepidoptera", 
+  "#425326"
+   
+#"Neuroptera", 
+   "#817425"
+
+#"Orthoptera",
+   "#FFB703"
+
+#"Psocodea", 
+   "#FD9E02"
+
+#"Trichoptera"
+   "#FB8500"
+
+plot_taxa_prevalence(
+  M_prune, "Order") + 
+   scale_color_manual(values=c(
+     "#092B34", "#126782",  "#A5E1F3", "#023047",   "#425326",  "#817425",  "#FFB703",  "#FD9E02",   "#FB8500")) 
+
+quantile(colSums(otu_table(MMYS)))
+sort(colSums(otu_table(MMYS)))
+######################################################
+
+# Visualize and compare 
+
+pB <- plot_bar(B_prune, x = "bat.sp", fill = "Order") + xlab(NULL) + geom_bar(stat="identity") 
+
+summarize_taxa(B_prune$tax_table)
+
+pM <- plot_bar(M_prune, x = "bat.sp", fill = "Order") + xlab(NULL) + geom_bar(stat="identity")
+
+pB
+pM
+#Again, this is not working ... I will sort it later.... 
+#prow <- plot_grid(
+#  pB,
+#  pM, 
+ 
+#  align = 'vh',
+#  labels = c("Myotis brandtii", "Myotis mystacinus"),
+#  hjust = -1,
+#  nrow = 1
+#)
+#prow
+## FIX  COLORS and redo this 
+pB
+pM 
+
+######################################################
+
+# Prevalence of the top 10 most abundant OTUs for both bat species from raw data 
+
+prevelancedf = apply(X = otu_table(bb_prune),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(batsbugs3),
+                      tax_table(bb_prune))
+prevelancedf[1:10,]
+
+######################################################
+
+# Prevalence of the top 10 most abundant OTUs for MBRA from raw data
+
+prevelancedf = apply(X = otu_table(MBRA),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(MBRA),
+                      tax_table(MBRA))
+prevelancedf[1:10,]
+
+######################################################
+
+# Prevalence of the top 10 most abundant OTUs for MMYS from raw data
+
+prevelancedf = apply(X = otu_table(MMYS),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(MMYS),
+                      tax_table(MMYS))
+prevelancedf[1:10,]
+
+
+```
+
+## Summarizing and visualizing FILTERED AND NORMALIZED data between the two bat species 
+
+How many prey items for MBRA and MMYS in the filtered/normal data? 
+Prevalence of the top 10 most abundant OTUs *for both bat species* from filtered/normal data
+
+```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+#Remove prey items that have 0 value OTUs 
+bb_prune <- prune_taxa(taxa_sums(batsbugs3) > 0, batsbugs3)
+ntaxa(bb_prune)
+
+#Subset the data by bat species and summarize OTU abundance
+
+# MBRA 
+
+MBRA <- subset_samples(batsbugs3, bat.sp == "MBRA")
+
+B_prune = prune_taxa(taxa_sums(MBRA) > 0, MBRA)
+ntaxa(B_prune)
+# 220 prey items detected for MBRA in the filtered/normal data 
+
+quantile(colSums(otu_table(MBRA)))
+sort(colSums(otu_table(MBRA)))
+
+sample_names(MBRA)
+
+######################################################
+
+#MMYS
+
+MMYS <- subset_samples(batsbugs3, bat.sp == "MMYS")
+
+M_prune = prune_taxa(taxa_sums(MMYS) > 0, MMYS)
+ntaxa(M_prune)
+
+sample_names
+# 288 prey items detected for MMYS in the filtered/normal data 
+
+quantile(colSums(otu_table(MMYS)))
+sort(colSums(otu_table(MMYS)))
+
+######################################################
+
+# Visualize and compare 
+
+pB <- plot_bar(B_prune, x = "bat.sp", fill = "Order") + 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
+  scale_fill_manual(values=c("#126782", "#A5E1F3", "#023047", "#425326", "#817425",  "#FB8500")) 
+pB
+
+pM <- plot_bar(M_prune, x = "bat.sp", fill = "Order") +
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
+  scale_fill_manual(values=c(
+     "#092B34", "#126782",  "#A5E1F3", "#023047",   "#425326",  "#817425",  "#FFB703",  "#FD9E02",   "#FB8500")) 
+pM
+
+######################################################
+
+# Prevalence of the top 20 most abundant OTUs for both bat species from filtered/normal data 
+
+prevelancedf = apply(X = otu_table(bb_prune),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(bb_prune),
+                      tax_table(bb_prune))
+prevelancedf[1:20,]
+
+######################################################
+
+# Prevalence of the top 20 most abundant OTUs for MBRA from filtered/normal data
+
+prevelancedf = apply(X = otu_table(B_prune),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(B_prune),
+                      tax_table(B_prune))
+prevelancedf[1:20,]
+
+######################################################
+
+# Prevalence of the top 20 most abundant OTUs for MMYS from filtered/normal data
+
+prevelancedf = apply(X = otu_table(M_prune),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(M_prune),
+                      tax_table(M_prune))
+prevelancedf[1:20,]
+
+
+```
+
+## Look at prevalence of differnet prey items from the filtered (not normalized) data
+ 
+```{r}
+
+bb_prune2 <- prune_taxa(taxa_sums(batsbugs2) > 0, batsbugs2)
+ntaxa(bb_prune2)
+# 1370
+
+
+#Subset the raw data by bat species and summarize OTU abundance
+
+# MBRA 
+
+MBRA2 <- subset_samples(batsbugs2, bat.sp == "MBRA")
+MBRA2
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1393 taxa and 15 samples ]
+# sample_data() Sample Data:       [ 15 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1393 taxa by 7 taxonomic ranks ]
+
+B_prune2 = prune_taxa(taxa_sums(MBRA2) > 0, MBRA2)
+ntaxa(B_prune)
+B_prune2
+
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 601 taxa and 15 samples ]
+# sample_data() Sample Data:       [ 15 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 601 taxa by 7 taxonomic ranks ]
+
+plot_taxa_prevalence(
+  B_prune2, "Order") + 
+  scale_color_manual(values=c("#126782", "#A5E1F3", "#023047", "#425326", "#817425",  "#FB8500")) 
+
+
+quantile(colSums(otu_table(MBRA2)))
+sort(colSums(otu_table(MBRA2)))
+
+######################################################
+
+#MMYS
+
+MMYS2 <- subset_samples(batsbugs2, bat.sp == "MMYS")
+MMYS2
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1393 taxa and 27 samples ]
+# sample_data() Sample Data:       [ 27 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1393 taxa by 7 taxonomic ranks ]
+
+M_prune2 = prune_taxa(taxa_sums(MMYS2) > 0, MMYS2)
+ntaxa(M_prune2)
+M_prune2
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 894 taxa and 27 samples ]
+# sample_data() Sample Data:       [ 27 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 894 taxa by 7 taxonomic ranks ]
+
+plot_taxa_prevalence(
+  M_prune2, "Order") + 
+   scale_color_manual(values=c(
+     "#126782", "#023047",   "#425326",  "#817425",  "#FFB703",  "#FD9E02",   "#FB8500")) 
+
+quantile(colSums(otu_table(MMYS)))
+sort(colSums(otu_table(MMYS)))
+######################################################
+
+# Visualize and compare 
+
+pB <- plot_bar(B_prune, x = "bat.sp", fill = "Order") + 
+  xlab(NULL) + theme_bw() + geom_bar(stat="identity") + ggtitle("MBRA") + 
+  scale_fill_manual(values=c("#126782", "#A5E1F3", "#023047", "#425326", "#817425",  "#FB8500"))
+
+summarize_taxa(B_prune$tax_table)
+
+pM <- plot_bar(M_prune2, x = "bat.sp", fill = "Order") + 
+  xlab(NULL) + theme_bw() + geom_bar(stat="identity") + ggtitle("MMYS") + 
+scale_fill_manual(values= 
+    c("#126782", "#023047",   "#425326",  "#817425",  "#FFB703",  "#FD9E02",   "#FB8500"))  
+
+pB
+pM
+
+######################################################
+
+# Prevalence of the top 10 most abundant OTUs for both bat species from raw data 
+
+prevelancedf = apply(X = otu_table(bb_prune2),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(bb_prune2),
+                      tax_table(bb_prune2))
+prevelancedf[1:10,]
+
+######################################################
+
+# Prevalence of the top 10 most abundant OTUs for MBRA from raw data
+
+prevelancedf = apply(X = otu_table(MBRA2),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(MBRA2),
+                      tax_table(MBRA2))
+prevelancedf[1:10,]
+
+######################################################
+
+# Prevalence of the top 10 most abundant OTUs for MMYS from raw data
+
+prevelancedf = apply(X = otu_table(MMYS2),
+                 MARGIN = 1,
+                 FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevelancedf = data.frame(Prevalence = prevelancedf,
+                      TotalAbundance = taxa_sums(MMYS2),
+                      tax_table(MMYS))
+prevelancedf[1:10,]
+
+
+```
+ 
+
+
+ 
+```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+
+bbord <- ordinate(bb_prune, "NMDS", distance="bray", k = 4)
+bbord
+
+# Also access axes 3 and 4, compare them 
+
+# envfit() from vegan to stack on top of ordination. Typically best for continuous variables, also accepts factor variables. This is an alternative to ANOVA. Not a real statistcal test. 
+
+O12<- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(1,2)) + 
+  stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
+  theme_bw() + 
+  ggtitle("NMDS1 and 2 with Bray-Curtis difference index ")
+O12
+
+O13<- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(1,3)) + 
+  stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
+  theme_bw()+ 
+  ggtitle("NMDS1 and 3 with Bray-Curtis difference index ")
+O13
+
+O14<- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(1,4)) + 
+  stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
+  theme_bw() + 
+  ggtitle("NMDS1 and 4 with Bray-Curtis difference index ")
+O14 # This looks strange - all points centered around 0 
+
+##Looks good 
+O23 <- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(2,3)) + 
+  stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
+  theme_bw() + 
+  ggtitle("NMDS 2 and 3 with Bray-Curtis difference index ")
+O23 # Total overlap 
+
+O24 <- plot_ordination(batsbugs3, bbord, color = "bat.sp", axes = c(2,4)) + 
+  stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
+  theme_bw() + 
+  ggtitle("NMDS 2 and 4 with Bray-Curtis difference index ")
+O24
+
+O34 <- plot_ordination(batsbugs3, bbord, color = "bat.sp", axes = c(3,4)) + 
+  stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
+  theme_bw() + 
+  ggtitle("NMDS 3 and 4 with Bray-Curtis difference index ")
+O34
+
+
+#Create a dataframe with NMDS scores
+ordscore <- scores(bbord, choices=c(1,2,3,4), tidy = TRUE)
+ordscore <- as.data.frame(ordscore)
+ordscore <- cbind(rownames(ordscore), data.frame(ordscore, row.names=NULL))
+names(ordscore)[1] <- "Sample"
+#1412 obs of 7 vars 
+ 
+```
+
+# Mixed linear model 
+
+https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics/anova/how-to/mixed-effects-model/interpret-the-results/key-results/#step-2-determine-whether-the-fixed-effect-terms-significantly-affect-the-response
+
+
+```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+
+# Convert Phyloseq object to dataframe
+bbdf = psmelt(bb_prune)
+#57540 obs of 19 vars 
+
+
+# remove NAs
+bbdf <- bbdf[complete.cases(bbdf),]
+#49800 obs of 19 vars
+summary(bbdf)
+str(bbdf)
+
+# Add the NMDS scores 
+bbdf1 <- left_join(bbdf, ordscore, by = "Sample")
+names(bbdf1)
+summary(bbdf1)
+bbdf1$batch <- as.factor(bbdf1$batch)
+bbdf1$Sample <- as.factor(bbdf1$Sample)
+bbdf1$label <- as.factor(bbdf1$label)
+
+
+#build models ## beware, R has crashed here. Save first. 
+# mod1 <- lmer(NMDS1 ~ bat.sp + (1|label), data = bbdf1) also crashes. 
+# mod2 <- lmer(NMDS2 ~ bat.sp + (1|batch), bbdf1)
+# mod3 <- lmer(NMDS3 ~ bat.sp + (1|batch), bbdf1)
+# mod4 <- lmer(NMDS4 ~ bat.sp + (1|batch), bbdf1)
+
+
+# mod1 <-lme(NMDS1 ~ bat.sp, data=bbdf1)
+# 
+# summary(mod1)
+# summary(mod2)
+
+
+### START HERE 
+library(nlme)
+m1 <- lme(NMDS1~bat.sp + year, random=~1|batch, data=bbdf1)
+m1
+# 
+# Linear mixed-effects model fit by REML
+#   Data: bbdf1 
+#        AIC      BIC    logLik
+#   390274.6 390318.7 -195132.3
+# 
+# Random effects:
+#  Formula: ~1 | batch
+#         (Intercept) Residual
+# StdDev:   0.9540659 12.17367
+# 
+# Fixed effects:  NMDS1 ~ bat.sp + year 
+#                  Value Std.Error    DF   t-value p-value
+# (Intercept) -18591.527 256.89522 49796 -72.37008       0
+# bat.spMMYS      -0.930   0.11875 49796  -7.82761       0
+# year             9.214   0.12731 49796  72.37697       0
+#  Correlation: 
+#            (Intr) b.MMYS
+# bat.spMMYS -0.173       
+# year       -1.000  0.173
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -3.3596597 -0.2051231 -0.1247765  0.1586685  4.3029836 
+# 
+# Number of Observations: 49800
+# Number of Groups: 2 
+
+m2 <- lme(NMDS2~bat.sp + year, random=~1|batch,data=bbdf1)
+summary(m2)
+
+m3 <- lme(NMDS3~bat.sp + year, random=~1|batch,data=bbdf1)
+summary(m3)
+
+m4 <- lme(NMDS4~bat.sp + year, random=~1|batch,data=bbdf1)
+
+
+################ Test with year*bat.sp interaction 
+m1_test <- lme(NMDS1~bat.sp + bat.sp*year, random=~1|batch,data=bbdf1)
+summary(m1_test)
+
+m2_test <- lme(NMDS2~bat.sp + bat.sp*year, random=~1|batch,data=bbdf1)
+summary(m2_test)
+
+m3_test <- lme(NMDS3~bat.sp + bat.sp*year, random=~1|batch,data=bbdf1)
+summary(m3_test)
+
+m4_test <- lme(NMDS4~bat.sp + bat.sp*year, random=~1|batch,data=bbdf1)
+summary(m4_test)
+
+############# No year 
+m.1 <- lme(NMDS1~bat.sp,random=~1|batch,data=bbdf1)
+
+m.2 <- lme(NMDS2~bat.sp,random=~1|batch,data=bbdf1)
+# m.3 <- lme(NMDS3~bat.sp,random=~1|batch,data=bbdf1)
+# Error in lme.formula(NMDS3 ~ bat.sp, random = ~1 | batch, data = bbdf1) : 
+#   nlminb problem, convergence error code = 1
+#   message = false convergence (8)
+
+m.4 <- lme(NMDS4~bat.sp,random=~1|batch,data=bbdf1)
+
+
+############# Only batch B 
+
+bbdf2 <- bbdf1 %>% dplyr::filter(batch == "B") %>% droplevels()
+summary(bbdf2)
+
+m1. <- lme(NMDS1~bat.sp + year, random=~1|label, data=bbdf2)
+summary(m1.) # species not significant 
+
+m2. <- lme(NMDS2~bat.sp + year, random=~1|label, data=bbdf2)
+summary(m2.) # species significant 
+
+m2._test <- lme(NMDS2~bat.sp + bat.sp*year, random=~1|batch,data=bbdf2)
+summary(m2._test)
+
+
+
+#Quick visualization of difference between the two species:
+
+par(mfrow=c(2, 1))
+plot(allEffects(m1), type = "response")
+plot(allEffects(m2), type = "response")
+
+# https://rdrr.io/cran/sjPlot/f/vignettes/plot_marginal_effects.Rmd
+
+#plotting marginal effects
+#plot_model(mod1, type = "pred", terms = "bat.sp")
+plot_model(m1, type = "eff", terms = "bat.sp")
+
