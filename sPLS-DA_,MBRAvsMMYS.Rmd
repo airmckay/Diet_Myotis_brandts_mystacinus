@@ -1,0 +1,1055 @@
+---
+title: "sPLS-da_protocol_MBRAvsMMYS"
+output: html_document
+date: "2023-09-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background
+
+Most of the code in this script and was provided by Franz Hölzl and collaborators of his at KLIVV (Konrad Lorenz Institute of Ethology in Vienna). The code has been adapted to compare the diet of bat species capture and sampled in Nittedal, Norway in the summers 2017 - 2018. Bat species included in the anlysis are Northern bats (ENIL), Brandt's bats (MBRA), Daubenton's bats (MDAU), whiskered bats (MMYS) and brown long-eared bats (PAUR). The main focus of this sampling effort and the broader research topic is on MBRA and MMYS, so this part of the samplig will also be emphasized in downstream analysis. 
+
+Overview of the samples included: 
+ ENIL *MBRA* MDAU *MMYS* PAUR 
+ 2    *16*   10   *31*    5 
+ 
+*KEY TERMS*
+sPLS-DA  
+
+Sparse PLS distriminant analysis 
+https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-253
+
+"While PLS was designed for regression and exploratory purposes, it can be applied in classification contexts. Internally, the y vector is converted to a dummy block matrix, Y, (ie. 'one hot encoded') of size N∗K
+, where N is the number of samples and K is the number of classes. The standard PLS regression algorithm then operates on this new dataframe. Classification uses the projection of the data onto the components yielded by PLS which are defined by their corresponding loading vectors. Refer to the Distance Metrics page for more information on how classifications are actually made.
+
+The implementation of PLS-DA functions equivalently on large datasets and better on smaller datasets when compared to equivalent classification methods, such as Linear (Fisher's) Discriminant Analysis [4]. This is especially true in multiclass cases (more than 2 classes) as the PLS-DA model does not require the construction of various 2-class submodels.
+
+When evaluating the classification performance of (s)PLS-DA models, repeated cross-validation is used. Generally, 5 or 10 folds and 50-100 repeats is appropriate. As overfitting is always a risk when undergoing classification, these repeats are used to ensure that feature selection is occurring optimally." http://mixomics.org/methods/spls-da/
+
+
+
+
+## Objective 
+
+There are three steps needed befor we can do *mixomics* (sPLS-DA) (R package dedicated to the multivariate analysis of biological data sets with a specific focus on data exploration, dimension reduction and visualisation):
+
+### 1) Add an offset of 1 to the whole data matrix to deal with zeroes after centered log ratio transformation
+### 2) Pre-filter the raw count data to remove features with low counts across all samples
+### 3) Centered log-ratio (CLR) transformation
+
+#### We will use phyloseq object and we will first focus on genus level data
+
+
+## Additional resources
+
+Useful vignettes 
+
+*Cool exploratory plots for exploring the different components*
+https://nbisweden.github.io/workshop_omics_integration/session_mixomics/Hands-on_mixOmics.html
+
+*Closely follows our protocol*
+http://mixomics.org/case-studies/splsda-srbct-case-study/
+
+*Detailed background info* 
+https://www.bioconductor.org/packages/release/bioc/vignettes/mixOmics/inst/doc/vignette.html#introduction-01 
+
+
+
+```{r, Installing important packages}
+## If necessary: 
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.17")
+# BiocManager::install("mixOmics", force = TRUE)
+# 
+# install.packages("remotes")
+# remotes::install_github("jbisanz/qiime2R")
+# 
+# install.packages(
+#   "microViz",
+#   repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
+
+```
+
+
+
+```{r, preparing the workspace}
+
+getwd()
+# C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Mbra-vs-Mmys-diet-
+
+
+#lets get our phyloseq object
+library(qiime2R)
+library(BiocManager)
+library(phyloseq)
+library(mixOmics)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(microViz)
+library(beepr)
+
+output <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs"
+
+file.name <- "MBRAvsMMYSonly_sPLS-DA_protocol"
+
+todays_date <- Sys.Date()
+ 
+dir.name <- str_c(output,"/", file.name, "_", todays_date)
+dir.name
+ 
+output_today <- dir.name
+output_today
+
+dir.create(output_today)
+output_today
+```
+
+
+
+```{r, base phyloseq object}
+
+phylo <- qza_to_phyloseq(
+  features="~/1. PhD_Main/GitHub_link/Nittedal/Nittedal/Reference/bat-feat-tab-clean.qza",          
+   #it makes sense to use a filtered table, as sPLS-DA can't handle rare features very well
+  taxonomy="~/1. PhD_Main/GitHub_link/Nittedal/Nittedal/Reference/bat-classified-repr-seq.qza", 
+  metadata="~/1. PhD_Main/GitHub_link/Nittedal/Nittedal/Reference/bat-metadata_clean.tsv")
+
+phylo #shows what our physeq object contains
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 3629 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]
+
+#we remove all features that are unassigned on phylum level
+phylos <- subset_taxa(phylo, Phylum != "NA")
+
+phylos   #shows what our physeq object contains
+#phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 3629 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]
+#now we extract the data we need in the exact format that we need
+
+#we remove all features that are unassigned on genus level
+phyloseq <- subset_taxa(phylo, Genus != "NA")
+
+phyloseq   #shows what our physeq object contains
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 2536 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 2536 taxa by 7 taxonomic ranks ]
+
+```
+
+## Filter percent = 0.01
+```{r}
+phyloseq.mm <- phyloseq %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
+
+phylo_gen.mm <- phyloseq.mm 
+
+genus_level.mm <- tax_glom(phylo_gen.mm, taxrank= 'Genus', NArm= T, bad_empty=c(NA, "", " ", "\t"))
+
+#now we extract the data we need in the exact format that we need
+
+taxo_genus.mm <- tax_table(genus_level.mm) # extraction of the taxonomy
+
+meta.data_gen.mm <- phylo_gen.mm@sam_data # extraction of the metadata
+
+# extract OTU table from phyloseq object
+# samples should be in row and variables in column
+genus.raw.mm <- t(otu_table(genus_level.mm))
+
+#now the offset is applied  (adding 1 to each "count" )
+genus.offset.mm <- genus.raw.mm + 1
+
+sum(which(genus.offset.mm == 0)) # check how many zeroes there are
+#[1] 0
+
+#we check the dimensions of the dataset
+dim(genus.offset.mm)
+#[1]   47 104
+
+data.offset <- genus.offset.mm
+# 
+# #This is followed by removal of all OTUs with a low total count.
+low.count.removal <- function(
+    data, # OTU count data frame of size n (sample) x p (OTU)
+    percent=0.01 # cutoff chosen
+)
+{
+  keep.otu = which(colSums(data)*100/(sum(colSums(data))) > percent)
+  data.filter = data[,keep.otu]
+  return(list(data.filter = data.filter, keep.otu = keep.otu))
+}
+
+
+
+ result.filter <- low.count.removal(data.offset, percent=0.01) 
+  data.filter <- result.filter$data.filter
+ length(result.filter$keep.otu) # check how many OTUs remain
+# #104 (percent = 0.01)
+# #96 (percent = 0.05) 
+
+#last we remove outliers based on max library size 
+lib.size <- apply(data.filter, 1, sum) # determine size of each library
+genus.data.filter<- data.filter
+
+
+str(data.offset)
+
+str(genus.data.filter)
+
+## remove samples which exceed max library size (31000) (this we skip)
+#maximum.lib.size <- 31000
+#data.filter <- data.filter[-which(lib.size > maximum.lib.size),] 
+
+#now we can start with sPLS_DA analysis
+
+#first we make a matrix of our desired meta.data column and specify our x and y
+
+A <- genus.data.filter  # use the filtered,preprocessed data as the X matrix
+Z <- as.factor(meta.data_gen.mm$bat.sp) # use the class data (metadata$season) as the Y matrix
+
+dim(A) # check the dimensions of the X dataframe
+#[1]  47 104
+
+summary(Z) # check the distribution of class labels
+# MBRA MMYS 
+#   16   31 
+
+
+#### initial analysis
+#As in most cases when developing models, exploring the data to determine the major sources of variation is a good first step. PCA will be used for this. As described in the PCA Methods Page, centering and scaling is recommended to homogenize the variance across the genes. ncomp is set to an arbitrarily high number to understand the captured variance across components.
+
+# run pca method on data
+pca.genus.mm = pca(A, ncomp = 10, logratio = 'CLR', scale = TRUE) 
+plot(pca.genus.mm)  # barplot of the eigenvalues (explained variance per component)
+
+#Steep drop off between component 1 -2 and then the rest.
+
+#plot the first two components
+plotIndiv(pca.genus.mm, group = Z, ind.names = FALSE, # plot the samples projected
+          legend = TRUE, title = 'PCA on Genus, comp 1 - 2') # onto the PCA subspace
+
+
+#Initial sPLS-DA model
+genus.splsda.mm <- splsda(A, Z, ncomp = 10, logratio = 'CLR')  # set ncomp to 10 for performance assessment later
+
+meta.data_filt.mm <- genus.splsda.mm$sam_data # extraction of the metadata
+
+
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+
+## All bats
+
+plotIndiv(genus.splsda.mm , comp = c(1,2), 
+          group = Z , ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Genus PLS-DA component 1&2')
+
+plotIndiv(genus.splsda.mm , comp = c(1,5), 
+          group = Z , ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Genus PLS-DA component 1&5')
+
+# Not a huge difference seemingly 
+
+# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+background_gen = background.predict(genus.splsda.mm, comp.predicted=2, dist = "max.dist")
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+plotIndiv(genus.splsda.mm, comp = 1:2,
+          group = Z, 
+          ind.names = FALSE, # colour points by class
+          background = background_gen, # include prediction background for each class
+          legend = TRUE, title = " (b) Genus PLS-DA with prediction background")
+
+#Tuning sPLS-DA
+
+#Selecting the number of components
+
+#The ncomp Parameter
+#The number of components to use is a crucial decision and is dictated by the performance of the PLS-DA model – i.e. its ability to correctly classify novel samples. The perf() function is used for this exactly. This is done with repeated cross-validation. Based on the output of this function, the optimal number of components to use can be identified.
+#A three-fold, 10 repeat cross-validation procedure is utilised here. Generally, for datasets with numerous samples, at least 10 folds is recommended. 3 or 5 folds is appropriate for smaller datasets and those with minimal samples should use Leave-One-Out (LOO) validation. Consider using 50-100 repeats to reduce the impact of the randomly allocated folds during each repeat.
+#The overall error rate (OER) and balanced error rate (BER) for the three different distance metrics (explained further below) across the first ten components can be depicted graphically.
+
+# undergo performance evaluation in order to tune the number of components to use
+perf.splsda.gen.mm <- perf(genus.splsda.mm, validation = "Mfold", 
+                       folds = 10, nrepeat = 100, # use repeated cross-validation
+                       progressBar = FALSE, auc = TRUE) # include AUC values
+
+beep()
+
+# plot the outcome of performance evaluation across all ten components
+plot(perf.splsda.gen.mm, col = color.mixo(5:7), sd = TRUE,
+     legend.position = "horizontal")
+
+#A more empirical way to select this number is through the $choice.ncomp component of the perf() output object. It runs t-tests for a significant different in mean error rate across components. Using the max.dist metric, this suggests that the optimal number of components is 4. When to use each distance metric is explained further below.
+
+perf.splsda.gen.mm$choice.ncomp # what is the optimal value of components according to perf()
+#         max.dist centroids.dist mahalanobis.dist
+# overall        1              1                1
+# BER            1              1                1
+
+# grid of possible keepX values that will be tested for each component
+list.keepX <- c(1:10,  seq(20, 300, 100))
+
+# undergo the tuning process to determine the optimal number of variables
+tune.splsda.gen.mm <- tune.splsda(A, Z, ncomp = 2, # calculate for first 2 components (based on the max dist value of perf.splsda.gen$choice.ncomp)
+                              validation = 'Mfold',
+                              folds = 5, nrepeat = 100, # use repeated cross-validation
+                              dist = 'max.dist', # use max.dist measure
+                              measure = "BER", # use balanced error rate of dist measure
+                              test.keepX = list.keepX,
+                              cpus = 2) # allow for parallelization to decrease run time
+beep()
+
+## No warning message 
+
+plot(tune.splsda.gen.mm, col = color.jet(2)) # plot output of variable number tuning
+
+tune.splsda.gen.mm$choice.ncomp$ncomp # what is the optimal value of components according to tune.splsda()
+#1
+tune.splsda.gen.mm$choice.keepX # what are the optimal values of variables according to tune.splsda()
+# comp1 comp2 
+#   20    1
+
+
+optimal.ncomp <- tune.splsda.gen.mm$choice.ncomp$ncomp #WE DO NOT USE THIS BECAUSE IT WOULD BE 1!!
+## In my case, it is 1... 
+optimal.keepX.gen <- tune.splsda.gen.mm$choice.keepX[1:optimal.ncomp]
+# now 120 
+
+# form final model with optimised values for component and variable count
+final.splsda.gen.mm <- splsda(A, Z, logratio = 'CLR',
+                       ncomp = 2, 
+                       keepX = optimal.keepX.gen)
+
+biplot(final.splsda.gen.mm, group = Z) 
+
+#we export the plot as png
+png(file.path(output_today,"2A_sPLS-DA_genus_MBRAvsMMYS.png") ,width=480, height = 480, res =100, pointsize = 12)
+plotIndiv(final.splsda.gen.mm, comp = c(1,2), # plot samples from final model
+          group = meta.data_gen.mm$bat.sp, ind.names = FALSE, # colour by class label
+          ellipse = TRUE, legend = TRUE, # include 95% confidence ellipse
+          title = 'sPLS-DA on genus level, comp 1 & 2')
+dev.off()
+
+#set the styling of the legend to be homogeneous with previous plots
+legend.gen=list(legend = levels(Z), # set of classes
+            col = unique(color.mixo(Z)), # set of colours
+            title = "Bat species", # legend title
+            cex = 0.8) # legend size
+
+#save taxo_genus (matrix) as dataframe to change the column names from feature-ID to genus
+taxo_genus_dat.mm<- as.data.frame(taxo_genus.mm)
+
+legend=list(legend = levels(Z), # set of classes
+            col = c("#F68B33","#388ECC"), # set of colours
+            title = "Bat species", # legend title
+            cex = 1.2)#legend size
+             
+
+Z_cols<- palette(c("#F68B33","#388ECC"))[Z]
+
+# generate the CIM, using the legend and colouring rows by each sample's class and export as png
+png(file.path(output_today,"2B_sPLS-DA_gen_heatmap_comp1_MBRAvsMMYS.png"),width=900, height = 900, res =100, pointsize = 12)
+cim_gen <- cim(final.splsda.gen.mm, row.sideColors = Z_cols, 
+           col.names=taxo_genus_dat.mm$Genus,
+           legend = legend.gen, comp=c(1,2), margins= c(9,9))
+dev.off()
+
+
+
+
+#create a csv of the data frame that is used to name the graph
+#write.csv(taxo_dat, file = file.path(output_today,"taxo_dat_allprey_MBRAvsMMYS.csv")) 
+
+#we now also create a dataframe of final.splsda$loadings (this contains the ASVs that are used to create the heatmap)
+splsda_dat<- as.data.frame(final.splsda.gen.mm$loadings$X)
+
+head(splsda_dat)
+#                                       comp1       comp2
+# aedf8e775e4c0c959f9ad1e7460a6b13  0.0000000 -0.25042016
+# c36206e2de9ff84834f976b81c27a456  0.0000000  0.04317973
+# 570987e04aab202503861ef80daf753d  0.0000000 -0.02831275
+# f3f8461c4427dde0771e1124c113a10b  0.0000000  0.04357084
+# b2e82bffcb8df9ac39104f49dce9a92c  0.0000000 -0.08861210
+# 4c48bcea2a0b6958fd7415823dbd128f -0.1130514 -0.05097372                               
+
+#as we only used comp1, we will now extract all the ASVs that are not zero in X.comp1
+only_usasvs_splsda<- splsda_dat[splsda_dat$comp2 != 0, ]
+
+#now only keep X.comp2 (because there were only 20 obs out of 104 where comp1 > 0)
+only_usasvs_splsda1<- only_usasvs_splsda %>% select(2)
+
+head(only_usasvs_splsda1)
+#                                        comp2
+# aedf8e775e4c0c959f9ad1e7460a6b13 -0.25042016
+# c36206e2de9ff84834f976b81c27a456  0.04317973
+# 570987e04aab202503861ef80daf753d -0.02831275
+# f3f8461c4427dde0771e1124c113a10b  0.04357084
+# b2e82bffcb8df9ac39104f49dce9a92c -0.08861210
+# 4c48bcea2a0b6958fd7415823dbd128f -0.05097372
+
+#now we save this as csv
+
+names(only_usasvs_splsda1)
+# "comp1"      "feature_ID"
+only_usasvs_splsda1$feature_ID <- row.names(only_usasvs_splsda1)
+
+names(taxo_genus_dat.mm)
+#  "Kingdom"    "Phylum"     "Class"      "Order"      "Family"     "Genus"      "Species"    "feature_ID"
+
+taxo_genus_dat.mm$feature_ID <- row.names(taxo_genus_dat.mm)
+
+#load the csv-files
+usASVs<- left_join(only_usasvs_splsda1, taxo_genus_dat.mm)
+
+#merge the two tables
+mergtacos<- merge(usASVs, taxo_genus_dat.mm) 
+
+#rearrange the df
+new_df<- subset(mergtacos, select= c(feature_ID, comp2, Phylum, Class, Order, Family, Genus))
+
+#export as table
+ write.csv(new_df,  file=file.path(output_today, "final_splsda_table_allprey_MBRAvsMMYS.csv"))
+
+
+#merge the two tables
+mergtacos<- merge(usASVs, taxo_genus_dat.mm)  
+
+#rearrange the df
+new_df<- subset(mergtacos, select= c(feature_ID, comp2, Phylum, Class, Order, Family, Genus))
+
+#export as table
+#write.csv(new_df, file="final_splsda_table_genus_MBRAvsMMYS.csv")
+
+summary(new_df)
+head(new_df)
+
+ #  feature_ID            comp2              Phylum             Class              Order          
+ # Length:104         Min.   :-0.250420   Length:104         Length:104         Length:104        
+ # Class :character   1st Qu.:-0.065099   Class :character   Class :character   Class :character  
+ # Mode  :character   Median :-0.012491   Mode  :character   Mode  :character   Mode  :character  
+ #                    Mean   : 0.001063                                                           
+ #                    3rd Qu.: 0.062318                                                           
+ #                    Max.   : 0.218958                                                           
+ #    Family             Genus          
+ # Length:104         Length:104        
+ # Class :character   Class :character  
+ # Mode  :character   Mode  :character  
+
+## Does not keep the bat species information? 
+## Using component 1 vs 2? 
+## How to model the output? 
+```
+
+## Filter percent = 0.05
+```{r}
+phyloseq.mm <- phyloseq %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
+
+phylo_gen.mm <- phyloseq.mm 
+
+genus_level.mm <- tax_glom(phylo_gen.mm, taxrank= 'Genus', NArm= T, bad_empty=c(NA, "", " ", "\t"))
+
+#now we extract the data we need in the exact format that we need
+
+taxo_genus.mm <- tax_table(genus_level.mm) # extraction of the taxonomy
+
+meta.data_gen.mm <- phylo_gen.mm@sam_data # extraction of the metadata
+
+# extract OTU table from phyloseq object
+# samples should be in row and variables in column
+genus.raw.mm <- t(otu_table(genus_level.mm))
+
+#now the offset is applied  (adding 1 to each "count" )
+genus.offset.mm <- genus.raw.mm + 1
+
+sum(which(genus.offset.mm == 0)) # check how many zeroes there are
+#[1] 0
+
+#we check the dimensions of the dataset
+dim(genus.offset.mm)
+#[1]   47 104
+
+data.offset <- genus.offset.mm
+# 
+# #This is followed by removal of all OTUs with a low total count.
+low.count.removal <- function(
+    data, # OTU count data frame of size n (sample) x p (OTU)
+    percent=0.01 # cutoff chosen
+)
+{
+  keep.otu = which(colSums(data)*100/(sum(colSums(data))) > percent)
+  data.filter = data[,keep.otu]
+  return(list(data.filter = data.filter, keep.otu = keep.otu))
+}
+
+
+ result.filter <- low.count.removal(data.offset, percent=0.05) 
+  data.filter <- result.filter$data.filter
+ length(result.filter$keep.otu) # check how many OTUs remain
+# #96 (percent = 0.05) 
+
+#last we remove outliers based on max library size 
+lib.size <- apply(data.filter, 1, sum) # determine size of each library
+genus.data.filter<- data.filter
+
+
+str(data.offset)
+
+str(genus.data.filter)
+
+#now we can start with sPLS_DA analysis
+
+#first we make a matrix of our desired meta.data column and specify our x and y
+
+A <- genus.data.filter  # use the filtered,preprocessed data as the X matrix
+Z <- as.factor(meta.data_gen.mm$bat.sp) # use the class data (metadata$season) as the Y matrix
+
+dim(A) # check the dimensions of the X dataframe
+#[1]  47 96
+
+summary(Z) # check the distribution of class labels
+# MBRA MMYS 
+#   16   31 
+
+
+#### initial analysis
+#As in most cases when developing models, exploring the data to determine the major sources of variation is a good first step. PCA will be used for this. As described in the PCA Methods Page, centering and scaling is recommended to homogenize the variance across the genes. ncomp is set to an arbitrarily high number to understand the captured variance across components.
+
+# run pca method on data
+pca.genus.mm = pca(A, ncomp = 10, logratio = 'CLR', scale = TRUE) 
+plot(pca.genus.mm)  # barplot of the eigenvalues (explained variance per component)
+
+#Steep drop off between component 1 -2 and then the rest.
+
+#plot the first two components
+plotIndiv(pca.genus.mm, group = Z, ind.names = FALSE, # plot the samples projected
+          legend = TRUE, title = 'PCA on Genus, comp 1 - 2') # onto the PCA subspace
+
+
+#Initial sPLS-DA model
+genus.splsda.mm <- splsda(A, Z, ncomp = 10, logratio = 'CLR')  # set ncomp to 10 for performance assessment later
+
+meta.data_filt.mm <- genus.splsda.mm$sam_data # extraction of the metadata
+
+
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+
+## All bats
+
+plotIndiv(genus.splsda.mm , comp = c(1,2), 
+          group = Z , ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Genus PLS-DA component 1&2')
+
+plotIndiv(genus.splsda.mm , comp = c(1,5), 
+          group = Z , ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Genus PLS-DA component 1&5')
+
+# Not a huge difference seemingly 
+
+# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+background_gen = background.predict(genus.splsda.mm, comp.predicted=2, dist = "max.dist")
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+plotIndiv(genus.splsda.mm, comp = 1:2,
+          group = Z, 
+          ind.names = FALSE, # colour points by class
+          background = background_gen, # include prediction background for each class
+          legend = TRUE, title = " (b) Genus PLS-DA with prediction background")
+
+#Tuning sPLS-DA
+
+#Selecting the number of components
+
+#The ncomp Parameter
+#The number of components to use is a crucial decision and is dictated by the performance of the PLS-DA model – i.e. its ability to correctly classify novel samples. The perf() function is used for this exactly. This is done with repeated cross-validation. Based on the output of this function, the optimal number of components to use can be identified.
+#A three-fold, 10 repeat cross-validation procedure is utilised here. Generally, for datasets with numerous samples, at least 10 folds is recommended. 3 or 5 folds is appropriate for smaller datasets and those with minimal samples should use Leave-One-Out (LOO) validation. Consider using 50-100 repeats to reduce the impact of the randomly allocated folds during each repeat.
+#The overall error rate (OER) and balanced error rate (BER) for the three different distance metrics (explained further below) across the first ten components can be depicted graphically.
+
+# undergo performance evaluation in order to tune the number of components to use
+perf.splsda.gen.mm <- perf(genus.splsda.mm, validation = "Mfold", 
+                       folds = 10, nrepeat = 100, # use repeated cross-validation
+                       progressBar = FALSE, auc = TRUE) # include AUC values
+
+beep()
+
+# plot the outcome of performance evaluation across all ten components
+plot(perf.splsda.gen.mm, col = color.mixo(5:7), sd = TRUE,
+     legend.position = "horizontal")
+
+#A more empirical way to select this number is through the $choice.ncomp component of the perf() output object. It runs t-tests for a significant different in mean error rate across components. Using the max.dist metric, this suggests that the optimal number of components is 4. When to use each distance metric is explained further below.
+
+perf.splsda.gen.mm$choice.ncomp # what is the optimal value of components according to perf()
+#         max.dist centroids.dist mahalanobis.dist
+# overall        1              1                1
+# BER            1              1                1
+
+# grid of possible keepX values that will be tested for each component
+list.keepX <- c(1:10,  seq(20, 300, 100))
+
+# undergo the tuning process to determine the optimal number of variables
+tune.splsda.gen.mm <- tune.splsda(A, Z, ncomp = 2, # calculate for first 2 components (based on the max dist value of perf.splsda.gen$choice.ncomp)
+                              validation = 'Mfold',
+                              folds = 5, nrepeat = 100, # use repeated cross-validation
+                              dist = 'max.dist', # use max.dist measure
+                              measure = "BER", # use balanced error rate of dist measure
+                              test.keepX = list.keepX,
+                              cpus = 2) # allow for parallelization to decrease run time
+beep()
+
+## No warning message 
+
+plot(tune.splsda.gen.mm, col = color.jet(2)) # plot output of variable number tuning
+
+tune.splsda.gen.mm$choice.ncomp$ncomp # what is the optimal value of components according to tune.splsda()
+#1
+tune.splsda.gen.mm$choice.keepX # what are the optimal values of variables according to tune.splsda()
+# comp1 comp2 
+#    20     1 
+
+## Number of components are the same! 
+optimal.ncomp <- tune.splsda.gen.mm$choice.ncomp$ncomp #WE DO NOT USE THIS BECAUSE IT WOULD BE 1!!
+## In my case, it is 1... 
+optimal.keepX.gen <- tune.splsda.gen.mm$choice.keepX[1:optimal.ncomp]
+# now 20 
+optimal.keepX.gen
+# form final model with optimised values for component and variable count
+final.splsda.gen.mm <- splsda(A, Z, logratio = 'CLR',
+                       ncomp = 2, 
+                       keepX = optimal.keepX.gen)
+
+biplot(final.splsda.gen.mm, group = Z) 
+
+#we export the plot as png
+png(file.path(output_today,"2A_sPLS-DA_genus_MBRAvsMMYS.png") ,width=480, height = 480, res =100, pointsize = 12)
+plotIndiv(final.splsda.gen.mm, comp = c(1,2), # plot samples from final model
+          group = meta.data_gen.mm$bat.sp, ind.names = FALSE, # colour by class label
+          ellipse = TRUE, legend = TRUE, # include 95% confidence ellipse
+          title = 'sPLS-DA on genus level, comp 1 & 2')
+dev.off()
+
+#set the styling of the legend to be homogeneous with previous plots
+legend.gen=list(legend = levels(Z), # set of classes
+            col = unique(color.mixo(Z)), # set of colours
+            title = "Bat species", # legend title
+            cex = 0.8) # legend size
+
+#save taxo_genus (matrix) as dataframe to change the column names from feature-ID to genus
+taxo_genus_dat.mm<- as.data.frame(taxo_genus.mm)
+
+legend=list(legend = levels(Z), # set of classes
+            col = c("#F68B33","#388ECC"), # set of colours
+            title = "Bat species", # legend title
+            cex = 1.2)#legend size
+             
+
+Z_cols<- palette(c("#F68B33","#388ECC"))[Z]
+
+# generate the CIM, using the legend and colouring rows by each sample's class and export as png
+png(file.path(output_today,"2B_sPLS-DA_gen_heatmap_comp1_MBRAvsMMYS.png"),width=900, height = 900, res =100, pointsize = 12)
+cim_gen <- cim(final.splsda.gen.mm, row.sideColors = Z_cols, 
+           col.names=taxo_genus_dat.mm$Genus,
+           legend = legend.gen, comp=c(1,2), margins= c(9,9))
+dev.off()
+
+
+
+
+#create a csv of the data frame that is used to name the graph
+#write.csv(taxo_dat, file = file.path(output_today,"taxo_dat_allprey_MBRAvsMMYS.csv")) 
+
+#we now also create a dataframe of final.splsda$loadings (this contains the ASVs that are used to create the heatmap)
+# splsda_dat<- as.data.frame(final.splsda.gen.mm$loadings$X)
+# 
+# head(splsda_dat)
+# #                                       comp1       comp2
+# # aedf8e775e4c0c959f9ad1e7460a6b13  0.0000000 -0.25042016
+# # c36206e2de9ff84834f976b81c27a456  0.0000000  0.04317973
+# # 570987e04aab202503861ef80daf753d  0.0000000 -0.02831275
+# # f3f8461c4427dde0771e1124c113a10b  0.0000000  0.04357084
+# # b2e82bffcb8df9ac39104f49dce9a92c  0.0000000 -0.08861210
+# # 4c48bcea2a0b6958fd7415823dbd128f -0.1130514 -0.05097372                               
+# 
+# #as we only used comp1, we will now extract all the ASVs that are not zero in X.comp1
+# only_usasvs_splsda<- splsda_dat[splsda_dat$comp2 != 0, ]
+# 
+# #now only keep X.comp2 (because there were only 20 obs out of 104 where comp1 > 0)
+# only_usasvs_splsda1<- only_usasvs_splsda %>% select(2)
+# 
+# head(only_usasvs_splsda1)
+# #                                        comp2
+# # aedf8e775e4c0c959f9ad1e7460a6b13 -0.25042016
+# # c36206e2de9ff84834f976b81c27a456  0.04317973
+# # 570987e04aab202503861ef80daf753d -0.02831275
+# # f3f8461c4427dde0771e1124c113a10b  0.04357084
+# # b2e82bffcb8df9ac39104f49dce9a92c -0.08861210
+# # 4c48bcea2a0b6958fd7415823dbd128f -0.05097372
+# 
+# #now we save this as csv
+# 
+# names(only_usasvs_splsda1)
+# # "comp1"      "feature_ID"
+# only_usasvs_splsda1$feature_ID <- row.names(only_usasvs_splsda1)
+# 
+# names(taxo_genus_dat.mm)
+# #  "Kingdom"    "Phylum"     "Class"      "Order"      "Family"     "Genus"      "Species"    "feature_ID"
+# 
+# taxo_genus_dat.mm$feature_ID <- row.names(taxo_genus_dat.mm)
+# 
+# #load the csv-files
+# usASVs<- left_join(only_usasvs_splsda1, taxo_genus_dat.mm)
+# 
+# #merge the two tables
+# mergtacos<- merge(usASVs, taxo_genus_dat.mm) 
+# 
+# #rearrange the df
+# new_df<- subset(mergtacos, select= c(feature_ID, comp2, Phylum, Class, Order, Family, Genus))
+# 
+# #export as table
+#  write.csv(new_df,  file=file.path(output_today, "final_splsda_table_allprey_MBRAvsMMYS.csv"))
+# 
+# 
+# #merge the two tables
+# mergtacos<- merge(usASVs, taxo_genus_dat.mm)  
+# 
+# #rearrange the df
+# new_df<- subset(mergtacos, select= c(feature_ID, comp2, Phylum, Class, Order, Family, Genus))
+# 
+# #export as table
+# #write.csv(new_df, file="final_splsda_table_genus_MBRAvsMMYS.csv")
+# 
+# summary(new_df)
+# head(new_df)
+
+ #  feature_ID            comp2              Phylum             Class              Order          
+ # Length:104         Min.   :-0.250420   Length:104         Length:104         Length:104        
+ # Class :character   1st Qu.:-0.065099   Class :character   Class :character   Class :character  
+ # Mode  :character   Median :-0.012491   Mode  :character   Mode  :character   Mode  :character  
+ #                    Mean   : 0.001063                                                           
+ #                    3rd Qu.: 0.062318                                                           
+ #                    Max.   : 0.218958                                                           
+ #    Family             Genus          
+ # Length:104         Length:104        
+ # Class :character   Class :character  
+ # Mode  :character   Mode  :character  
+
+## Does not keep the bat species information? 
+## Using component 1 vs 2? 
+## How to model the output? 
+```
+
+## Filter percent = 0.10
+```{r}
+phyloseq.mm <- phyloseq %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
+
+phylo_gen.mm <- phyloseq.mm 
+
+genus_level.mm <- tax_glom(phylo_gen.mm, taxrank= 'Genus', NArm= T, bad_empty=c(NA, "", " ", "\t"))
+
+#now we extract the data we need in the exact format that we need
+
+taxo_genus.mm <- tax_table(genus_level.mm) # extraction of the taxonomy
+
+meta.data_gen.mm <- phylo_gen.mm@sam_data # extraction of the metadata
+
+# extract OTU table from phyloseq object
+# samples should be in row and variables in column
+genus.raw.mm <- t(otu_table(genus_level.mm))
+
+#now the offset is applied  (adding 1 to each "count" )
+genus.offset.mm <- genus.raw.mm + 1
+
+sum(which(genus.offset.mm == 0)) # check how many zeroes there are
+#[1] 0
+
+#we check the dimensions of the dataset
+dim(genus.offset.mm)
+#[1]   47 104
+
+data.offset <- genus.offset.mm
+# 
+# #This is followed by removal of all OTUs with a low total count.
+low.count.removal <- function(
+    data, # OTU count data frame of size n (sample) x p (OTU)
+    percent=0.01 # cutoff chosen
+)
+{
+  keep.otu = which(colSums(data)*100/(sum(colSums(data))) > percent)
+  data.filter = data[,keep.otu]
+  return(list(data.filter = data.filter, keep.otu = keep.otu))
+}
+
+
+ result.filter <- low.count.removal(data.offset, percent=0.10) 
+  data.filter <- result.filter$data.filter
+ length(result.filter$keep.otu) # check how many OTUs remain
+# #76 
+ 
+#last we remove outliers based on max library size 
+lib.size <- apply(data.filter, 1, sum) # determine size of each library
+genus.data.filter<- data.filter
+
+
+str(data.offset)
+
+str(genus.data.filter)
+
+#now we can start with sPLS_DA analysis
+
+#first we make a matrix of our desired meta.data column and specify our x and y
+
+A <- genus.data.filter  # use the filtered,preprocessed data as the X matrix
+Z <- as.factor(meta.data_gen.mm$bat.sp) # use the class data (metadata$season) as the Y matrix
+
+dim(A) # check the dimensions of the X dataframe
+#[1]  47 76
+
+summary(Z) # check the distribution of class labels
+# MBRA MMYS 
+#   16   31 
+
+
+#### initial analysis
+#As in most cases when developing models, exploring the data to determine the major sources of variation is a good first step. PCA will be used for this. As described in the PCA Methods Page, centering and scaling is recommended to homogenize the variance across the genes. ncomp is set to an arbitrarily high number to understand the captured variance across components.
+
+# run pca method on data
+pca.genus.mm = pca(A, ncomp = 10, logratio = 'CLR', scale = TRUE) 
+plot(pca.genus.mm)  # barplot of the eigenvalues (explained variance per component)
+
+#Steep drop off between component 1 -2 and then the rest.
+
+#plot the first two components
+plotIndiv(pca.genus.mm, group = Z, ind.names = FALSE, # plot the samples projected
+          legend = TRUE, title = 'PCA on Genus, comp 1 - 2') # onto the PCA subspace
+
+
+#Initial sPLS-DA model
+genus.splsda.mm <- splsda(A, Z, ncomp = 10, logratio = 'CLR')  # set ncomp to 10 for performance assessment later
+
+meta.data_filt.mm <- genus.splsda.mm$sam_data # extraction of the metadata
+
+
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+
+## All bats
+
+plotIndiv(genus.splsda.mm , comp = c(1,2), 
+          group = Z , ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Genus PLS-DA component 1&2')
+
+plotIndiv(genus.splsda.mm , comp = c(1,5), 
+          group = Z , ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Genus PLS-DA component 1&5')
+
+# Not a huge difference seemingly 
+
+# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+background_gen = background.predict(genus.splsda.mm, comp.predicted=2, dist = "max.dist")
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+plotIndiv(genus.splsda.mm, comp = 1:2,
+          group = Z, 
+          ind.names = FALSE, # colour points by class
+          background = background_gen, # include prediction background for each class
+          legend = TRUE, title = " (b) Genus PLS-DA with prediction background")
+
+#Tuning sPLS-DA
+
+#Selecting the number of components
+
+#The ncomp Parameter
+#The number of components to use is a crucial decision and is dictated by the performance of the PLS-DA model – i.e. its ability to correctly classify novel samples. The perf() function is used for this exactly. This is done with repeated cross-validation. Based on the output of this function, the optimal number of components to use can be identified.
+#A three-fold, 10 repeat cross-validation procedure is utilised here. Generally, for datasets with numerous samples, at least 10 folds is recommended. 3 or 5 folds is appropriate for smaller datasets and those with minimal samples should use Leave-One-Out (LOO) validation. Consider using 50-100 repeats to reduce the impact of the randomly allocated folds during each repeat.
+#The overall error rate (OER) and balanced error rate (BER) for the three different distance metrics (explained further below) across the first ten components can be depicted graphically.
+
+# undergo performance evaluation in order to tune the number of components to use
+perf.splsda.gen.mm <- perf(genus.splsda.mm, validation = "Mfold", 
+                       folds = 10, nrepeat = 100, # use repeated cross-validation
+                       progressBar = FALSE, auc = TRUE) # include AUC values
+
+beep()
+
+# plot the outcome of performance evaluation across all ten components
+plot(perf.splsda.gen.mm, col = color.mixo(5:7), sd = TRUE,
+     legend.position = "horizontal")
+
+#A more empirical way to select this number is through the $choice.ncomp component of the perf() output object. It runs t-tests for a significant different in mean error rate across components. Using the max.dist metric, this suggests that the optimal number of components is 4. When to use each distance metric is explained further below.
+
+perf.splsda.gen.mm$choice.ncomp # what is the optimal value of components according to perf()
+#         max.dist centroids.dist mahalanobis.dist
+# overall        1              1                1
+# BER            1              1                1
+
+# grid of possible keepX values that will be tested for each component
+list.keepX <- c(1:10,  seq(20, 300, 100))
+
+# undergo the tuning process to determine the optimal number of variables
+tune.splsda.gen.mm <- tune.splsda(A, Z, ncomp = 2, # calculate for first 2 components (based on the max dist value of perf.splsda.gen$choice.ncomp)
+                              validation = 'Mfold',
+                              folds = 5, nrepeat = 100, # use repeated cross-validation
+                              dist = 'max.dist', # use max.dist measure
+                              measure = "BER", # use balanced error rate of dist measure
+                              test.keepX = list.keepX,
+                              cpus = 2) # allow for parallelization to decrease run time
+beep()
+
+## No warning message 
+
+plot(tune.splsda.gen.mm, col = color.jet(2)) # plot output of variable number tuning
+
+tune.splsda.gen.mm$choice.ncomp$ncomp # what is the optimal value of components according to tune.splsda()
+#1
+tune.splsda.gen.mm$choice.keepX # what are the optimal values of variables according to tune.splsda()
+# comp1 comp2 
+#    20     1 
+
+## Number of components are the same! 
+optimal.ncomp <- tune.splsda.gen.mm$choice.ncomp$ncomp #WE DO NOT USE THIS BECAUSE IT WOULD BE 1!!
+## In my case, it is 1... 
+optimal.keepX.gen <- tune.splsda.gen.mm$choice.keepX[1:optimal.ncomp]
+# now 20 
+optimal.keepX.gen
+# form final model with optimised values for component and variable count
+final.splsda.gen.mm <- splsda(A, Z, logratio = 'CLR',
+                       ncomp = 2, 
+                       keepX = optimal.keepX.gen)
+
+biplot(final.splsda.gen.mm, group = Z) 
+
+#we export the plot as png
+png(file.path(output_today,"2A_sPLS-DA_genus_MBRAvsMMYS.png") ,width=480, height = 480, res =100, pointsize = 12)
+plotIndiv(final.splsda.gen.mm, comp = c(1,2), # plot samples from final model
+          group = meta.data_gen.mm$bat.sp, ind.names = FALSE, # colour by class label
+          ellipse = TRUE, legend = TRUE, # include 95% confidence ellipse
+          title = 'sPLS-DA on genus level, comp 1 & 2')
+dev.off()
+
+#set the styling of the legend to be homogeneous with previous plots
+legend.gen=list(legend = levels(Z), # set of classes
+            col = unique(color.mixo(Z)), # set of colours
+            title = "Bat species", # legend title
+            cex = 0.8) # legend size
+
+#save taxo_genus (matrix) as dataframe to change the column names from feature-ID to genus
+taxo_genus_dat.mm<- as.data.frame(taxo_genus.mm)
+
+legend=list(legend = levels(Z), # set of classes
+            col = c("#F68B33","#388ECC"), # set of colours
+            title = "Bat species", # legend title
+            cex = 1.2)#legend size
+             
+
+Z_cols<- palette(c("#F68B33","#388ECC"))[Z]
+
+# generate the CIM, using the legend and colouring rows by each sample's class and export as png
+png(file.path(output_today,"2B_sPLS-DA_gen_heatmap_comp1_MBRAvsMMYS.png"),width=900, height = 900, res =100, pointsize = 12)
+cim_gen <- cim(final.splsda.gen.mm, row.sideColors = Z_cols, 
+           col.names=taxo_genus_dat.mm$Genus,
+           legend = legend.gen, comp=c(1,2), margins= c(9,9))
+dev.off()
+
+
+
+
+#create a csv of the data frame that is used to name the graph
+#write.csv(taxo_dat, file = file.path(output_today,"taxo_dat_allprey_MBRAvsMMYS.csv")) 
+
+#we now also create a dataframe of final.splsda$loadings (this contains the ASVs that are used to create the heatmap)
+# splsda_dat<- as.data.frame(final.splsda.gen.mm$loadings$X)
+# 
+# head(splsda_dat)
+# #                                       comp1       comp2
+# # aedf8e775e4c0c959f9ad1e7460a6b13  0.0000000 -0.25042016
+# # c36206e2de9ff84834f976b81c27a456  0.0000000  0.04317973
+# # 570987e04aab202503861ef80daf753d  0.0000000 -0.02831275
+# # f3f8461c4427dde0771e1124c113a10b  0.0000000  0.04357084
+# # b2e82bffcb8df9ac39104f49dce9a92c  0.0000000 -0.08861210
+# # 4c48bcea2a0b6958fd7415823dbd128f -0.1130514 -0.05097372                               
+# 
+# #as we only used comp1, we will now extract all the ASVs that are not zero in X.comp1
+# only_usasvs_splsda<- splsda_dat[splsda_dat$comp2 != 0, ]
+# 
+# #now only keep X.comp2 (because there were only 20 obs out of 104 where comp1 > 0)
+# only_usasvs_splsda1<- only_usasvs_splsda %>% select(2)
+# 
+# head(only_usasvs_splsda1)
+# #                                        comp2
+# # aedf8e775e4c0c959f9ad1e7460a6b13 -0.25042016
+# # c36206e2de9ff84834f976b81c27a456  0.04317973
+# # 570987e04aab202503861ef80daf753d -0.02831275
+# # f3f8461c4427dde0771e1124c113a10b  0.04357084
+# # b2e82bffcb8df9ac39104f49dce9a92c -0.08861210
+# # 4c48bcea2a0b6958fd7415823dbd128f -0.05097372
+# 
+# #now we save this as csv
+# 
+# names(only_usasvs_splsda1)
+# # "comp1"      "feature_ID"
+# only_usasvs_splsda1$feature_ID <- row.names(only_usasvs_splsda1)
+# 
+# names(taxo_genus_dat.mm)
+# #  "Kingdom"    "Phylum"     "Class"      "Order"      "Family"     "Genus"      "Species"    "feature_ID"
+# 
+# taxo_genus_dat.mm$feature_ID <- row.names(taxo_genus_dat.mm)
+# 
+# #load the csv-files
+# usASVs<- left_join(only_usasvs_splsda1, taxo_genus_dat.mm)
+# 
+# #merge the two tables
+# mergtacos<- merge(usASVs, taxo_genus_dat.mm) 
+# 
+# #rearrange the df
+# new_df<- subset(mergtacos, select= c(feature_ID, comp2, Phylum, Class, Order, Family, Genus))
+# 
+# #export as table
+#  write.csv(new_df,  file=file.path(output_today, "final_splsda_table_allprey_MBRAvsMMYS.csv"))
+# 
+# 
+# #merge the two tables
+# mergtacos<- merge(usASVs, taxo_genus_dat.mm)  
+# 
+# #rearrange the df
+# new_df<- subset(mergtacos, select= c(feature_ID, comp2, Phylum, Class, Order, Family, Genus))
+# 
+# #export as table
+# #write.csv(new_df, file="final_splsda_table_genus_MBRAvsMMYS.csv")
+# 
+# summary(new_df)
+# head(new_df)
+
+ #  feature_ID            comp2              Phylum             Class              Order          
+ # Length:104         Min.   :-0.250420   Length:104         Length:104         Length:104        
+ # Class :character   1st Qu.:-0.065099   Class :character   Class :character   Class :character  
+ # Mode  :character   Median :-0.012491   Mode  :character   Mode  :character   Mode  :character  
+ #                    Mean   : 0.001063                                                           
+ #                    3rd Qu.: 0.062318                                                           
+ #                    Max.   : 0.218958                                                           
+ #    Family             Genus          
+ # Length:104         Length:104        
+ # Class :character   Class :character  
+ # Mode  :character   Mode  :character  
+
+## Does not keep the bat species information? 
+## Using component 1 vs 2? 
+## How to model the output? 
+
+
+
+```
+

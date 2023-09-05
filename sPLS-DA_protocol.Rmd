@@ -95,7 +95,7 @@ library(patchwork)
 library(microViz)
 library(beepr)
 
-output <- "~/1. PhD_Main/GitHub_link/Nittedal/Mbra-vs-Mmys-diet-/Outputs"
+output <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs"
 
 file.name <- "Nittedal_sPLS-DA_protocol"
 
@@ -957,41 +957,45 @@ taxo <- tax_table(phyloseq.mm) # extraction of the taxonomy
 
 meta.data <- phyloseq.mm@sam_data # extraction of the metadata
 
-# extract OTU table from phyloseq object
+# extract OTU table from phyloseq object ## Forgot to include this earlier! Will work on this in the next version of this R Markdown: 
+
+# See sPLS-da_protocol_MBRAvsMMYS
+
+
 # samples should be in row and variables in column
-data.raw <- t(otu_table(phyloseq.mm))
-
-#1) now the offset is applied  (adding 1 to each "count" )
-data.offset <- data.raw+1
-sum(which(data.offset == 0)) # check how many zeroes there are
-#[1] 0
-
-#we check the dimensions of the dataset
-dim(data.offset)
-#[1]   47 1950
-
-#This is followed by removal of all OTUs with a low total count.
-low.count.removal <- function(
-    data, # OTU count data frame of size n (sample) x p (OTU)
-    percent=0.01 # cutoff chosen
-) 
-{
-  keep.otu = which(colSums(data)*100/(sum(colSums(data))) > percent)
-  data.filter = data[,keep.otu]
-  return(list(data.filter = data.filter, keep.otu = keep.otu))
-}
-
-t
-
-
-result.filter <- low.count.removal(data.offset, percent=0.01) 
-data.filter <- result.filter$data.filter
-length(result.filter$keep.otu) # check how many OTUs remain
-#[1] 1950
-
-#last we remove outliers based on max library size 
-
-lib.size <- apply(data.filter, 1, sum) # determine size of each library
+# data.raw <- t(otu_table(phyloseq.mm))
+# 
+# #1) now the offset is applied  (adding 1 to each "count" )
+# data.offset <- data.raw+1
+# sum(which(data.offset == 0)) # check how many zeroes there are
+# #[1] 0
+# 
+# #we check the dimensions of the dataset
+# dim(data.offset)
+# #[1]   47 1950
+# 
+# #This is followed by removal of all OTUs with a low total count.
+# low.count.removal <- function(
+#     data, # OTU count data frame of size n (sample) x p (OTU)
+#     percent=0.01 # cutoff chosen
+# ) 
+# {
+#   keep.otu = which(colSums(data)*100/(sum(colSums(data))) > percent)
+#   data.filter = data[,keep.otu]
+#   return(list(data.filter = data.filter, keep.otu = keep.otu))
+# }
+# 
+# t
+# 
+# 
+# result.filter <- low.count.removal(data.offset, percent=0.01) 
+# data.filter <- result.filter$data.filter
+# length(result.filter$keep.otu) # check how many OTUs remain
+# #[1] 1950
+# 
+# #last we remove outliers based on max library size 
+# 
+# lib.size <- apply(data.filter, 1, sum) # determine size of each library
 
 ## remove samples which exceed max library size (31000) (this we skip)
 #maximum.lib.size <- 31000
@@ -1283,11 +1287,43 @@ sum(which(genus.offset.mm == 0)) # check how many zeroes there are
 dim(genus.offset.mm)
 #[1]   47 104
 
+# data.filter <- genus.offset.mm
+# 
+# #This is followed by removal of all OTUs with a low total count.
+# low.count.removal <- function(
+#     data.filter, # OTU count data frame of size n (sample) x p (OTU)
+#     percent=0.01 # cutoff chosen
+# ) 
+# {
+#   keep.otu = which(colSums(data)*100/(sum(colSums(data))) > percent)
+#   data.filter = data[,keep.otu]
+#   return(list(data.filter = data.filter, keep.otu = keep.otu))
+# }
+# 
+# 
+# 
+# result.filter <- low.count.removal(genus.offset.mm, percent=0.01) 
+# data.filter <- result.filter$data.filter
+# length(result.filter$keep.otu) # check how many OTUs remain
+# #[1] 2536
+
+#last we remove outliers based on max library size 
+
+lib.size <- apply(data.filter, 1, sum) # determine size of each library
+genus.data.filter<- data.filter
+
+## remove samples which exceed max library size (31000) (this we skip)
+#maximum.lib.size <- 31000
+#data.filter <- data.filter[-which(lib.size > maximum.lib.size),] 
+
+
+
+
 #now we can start with sPLS_DA analysis
 
 #first we make a matrix of our desired meta.data column and specify our x and y
 
-A <- genus.offset.mm # use the filtered,preprocessed data as the X matrix
+A <- genus.data.filter  # use the filtered,preprocessed data as the X matrix
 Z <- as.factor(meta.data_gen.mm$bat.sp) # use the class data (metadata$season) as the Y matrix
 
 dim(A) # check the dimensions of the X dataframe
