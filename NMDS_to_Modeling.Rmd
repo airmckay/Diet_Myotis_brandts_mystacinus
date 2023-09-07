@@ -136,15 +136,40 @@ phyloseq   #shows what our physeq object contains
 # sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
 # tax_table()   Taxonomy Table:    [ 2536 taxa by 7 taxonomic ranks ]
 
+# 1093 taxa lost 
 
 
-batsbugs <- phyloseq %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
+#we remove all features that are unassigned on family level
+phyloseq1 <- subset_taxa(phylo, Family != "NA")
+
+phyloseq1   #shows what our physeq object contains
+# phyloseq1   #shows what our physeq object contains
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 2665 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 2665 taxa by 7 taxonomic ranks ]
+#3629 - 2665 =  964
+
+
+#we remove all features that are unassigned on genus level
+phyloseq2 <- subset_taxa(phylo, Order != "NA")
+
+phyloseq2   #shows what our physeq object contains
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 3629 taxa and 64 samples ]
+# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]*
+
+### Franz has suggested NOT filtering out taxa with NA values at this stage.
+
+
+batsbugs <- phylo %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
 batsbugs  
-#   phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1950 taxa and 47 samples ]
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 2616 taxa and 47 samples ]
 # sample_data() Sample Data:       [ 47 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1950 taxa by 7 taxonomic ranks ]
-  
+# tax_table()   Taxonomy Table:    [ 2616 taxa by 7 taxonomic ranks ]
+#   
 #Inspect the Phyloseq object:
   
   sample_names(batsbugs)
@@ -167,13 +192,12 @@ quantile(colSums(otu_table(batsbugs)))
 batsbugs1 <- prune_taxa(taxa_sums(batsbugs) >= 10, batsbugs) 
 batsbugs
 batsbugs1
-# 1950-1393 = 557 taxa lost  
+# 2616 - 1887 # 729 taxa lost 
 
 ntaxa(batsbugs1)
 quantile(colSums(otu_table(batsbugs1)))
-# quantile(colSums(otu_table(batsbugs1)))
-  #   0%    25%    50%    75%   100% 
-  # 13.0 2337.5 3628.0 3897.5 4000.0 
+#     0%    25%    50%    75%   100% 
+# 3857.0 3934.0 3950.0 3960.5 4000.0 
 
 sort(colSums(otu_table(batsbugs1)))
 
@@ -182,17 +206,17 @@ sort(colSums(otu_table(batsbugs1)))
 # (recommendation from Lisa Lunde)
 
 batsbugs2<-prune_samples(colSums(otu_table(batsbugs1))>=600,batsbugs1) 
-batsbugs2
-#phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1393 taxa and 42 samples ]
-# sample_data() Sample Data:       [ 42 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1393 taxa by 7 taxonomic ranks ]
+batsbugs2 # none lost 
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:         [ 1887 taxa and 47 samples ]
+# sample_data() Sample Data:       [ 47 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 1887 taxa by 7 taxonomic ranks ]
 
 #removed 5 samples, check that this worked: 
 sort(colSums(otu_table(batsbugs2)))
 quantile(colSums(otu_table(batsbugs2)))
- #     0%     25%     50%     75%    100% 
- # 838.00 2947.50 3693.50 3921.75 4000.00
+#     0%    25%    50%    75%   100% 
+# 3857.0 3934.0 3950.0 3960.5 4000.0 
 
 
 # Compare abundance across phyloseq objects 
@@ -201,13 +225,10 @@ p0 <- plot_bar(batsbugs, x = "bat.sp", fill = "Order") +
                 geom_bar(stat="identity") + theme_bw() + ggtitle("Raw")
 p0 # raw data 
 
-p1 <- plot_bar(batsbugs1, x = "bat.sp", fill = "Order") + 
-                geom_bar(stat="identity") + theme_bw() + ggtitle("OTUs > 10 reads")
-p1 # removed OTUs with less than 10 reads 
 
-p2 <- plot_bar(batsbugs2, x = "bat.sp", fill = "Order") +
+p1 <- plot_bar(batsbugs2, x = "bat.sp", fill = "Order") +
                 geom_bar(stat="identity") + theme_bw() + ggtitle("Samples > 600 reads")
-p2 # batsbugs 2 and removed samples with less than 600 reads 
+p1 # batsbugs 2 and removed samples with less than 600 reads 
 
 ```
 
@@ -246,7 +267,7 @@ Now for order
 
 ```{r}
 
-bb2.order <- aggregate_top_taxa2(batsbugs2, "Order", top = 45) %>% droplevels()
+bb2.order <- aggregate_top_taxa2(batsbugs2, "Order", top = 45) 
 
 plot.composition.CountAbun <- plot_composition(bb2.order) + 
   theme_bw() + ggtitle("Top 45 orders") + facet_wrap(~ bb2.order@sam_data$bat.sp)
@@ -287,14 +308,12 @@ print(plot.composition.relAbun)
 How many prey items for MBRA and MMYS in the filtered data? 
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
-ntaxa(batsbugs)
-# 1950
 
 bb_prune <- prune_taxa(taxa_sums(batsbugs2) > 0, batsbugs2)
 ntaxa(bb_prune)
-# 1370
+# 1887
 ntaxa(batsbugs2)
-# 1393
+# 1887
 
 
 #Subset the raw data by bat species and summarize OTU abundance
@@ -303,19 +322,20 @@ ntaxa(batsbugs2)
 
 MBRA <- subset_samples(batsbugs2, bat.sp == "MBRA")
 MBRA
-# otu_table()   OTU Table:         [ 1950 taxa and 16 samples ]
-# sample_data() Sample Data:       [ 16 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1950 taxa by 7 taxonomic ranks ]
-
-B_prune = prune_taxa(taxa_sums(MBRA) > 0, MBRA)
-ntaxa(B_prune)
-B_prune
 # phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 832 taxa and 16 samples ]
+# otu_table()   OTU Table:         [ 1887 taxa and 16 samples ]
 # sample_data() Sample Data:       [ 16 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 832 taxa by 7 taxonomic ranks ]
+# tax_table()   Taxonomy Table:    [ 1887 taxa by 7 taxonomic ranks ]
 
-#Btaxaorder 
+# B_prune = prune_taxa(taxa_sums(MBRA) > 0, MBRA)
+# ntaxa(B_prune)
+# B_prune
+# # phyloseq-class experiment-level object
+# # otu_table()   OTU Table:         [ 832 taxa and 16 samples ]
+# # sample_data() Sample Data:       [ 16 samples by 9 sample variables ]
+# # tax_table()   Taxonomy Table:    [ 832 taxa by 7 taxonomic ranks ]
+
+# For future potential color pallettes
 
 # Diptera", 
  "#126782"
@@ -336,8 +356,8 @@ B_prune
    "#FB8500"
 
 plot_taxa_prevalence(
-  B_prune, "Order") + 
-  scale_color_manual(values=c("#126782", "#A5E1F3", "#023047", "#425326", "#817425",  "#FB8500")) 
+  MBRA, "Order") +
+  scale_colour_brewer(palette="Set1")
 
 quantile(colSums(otu_table(MBRA)))
 sort(colSums(otu_table(MBRA)))
@@ -348,13 +368,13 @@ sort(colSums(otu_table(MBRA)))
 MMYS <- subset_samples(batsbugs2, bat.sp == "MMYS")
 MMYS
 # phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1950 taxa and 31 samples ]
+# otu_table()   OTU Table:         [ 1887 taxa and 31 samples ]
 # sample_data() Sample Data:       [ 31 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1950 taxa by 7 taxonomic ranks ]
+# tax_table()   Taxonomy Table:    [ 1887 taxa by 7 taxonomic ranks ]
 
-M_prune = prune_taxa(taxa_sums(MMYS) > 0, MMYS)
-ntaxa(M_prune)
-M_prune
+# M_prune = prune_taxa(taxa_sums(MMYS) > 0, MMYS)
+# ntaxa(M_prune)
+# M_prune
 # phyloseq-class experiment-level object
 # otu_table()   OTU Table:         [ 1249 taxa and 31 samples ]
 # sample_data() Sample Data:       [ 31 samples by 9 sample variables ]
@@ -383,10 +403,8 @@ M_prune
 #"Trichoptera"
    "#FB8500"
 
-plot_taxa_prevalence(
-  M_prune, "Order") + 
-   scale_color_manual(values=c(
-     "#126782",  "#023047",   "#425326",  "#817425",  "#FFB703",  "#FD9E02",   "#FB8500")) 
+plot_taxa_prevalence(MMYS, "Order") + 
+  scale_colour_brewer(palette="Set1")
 
 quantile(colSums(otu_table(MMYS)))
 sort(colSums(otu_table(MMYS)))
@@ -395,23 +413,26 @@ sort(colSums(otu_table(MMYS)))
 
 # Visualize and compare - ORders 
 
-pB <- plot_bar(B_prune, x = "bat.sp", fill = "Order") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
-  scale_fill_manual(values=c("#126782", "#A5E1F3", "#023047", "#425326", "#817425",  "#FB8500")) 
+pB <- plot_bar(MBRA, x = "bat.sp", fill = "Order") + 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() #+ 
+  scale_colour_brewer(palette="Set1")
 pB
 
 
-pM <- plot_bar(M_prune, x = "bat.sp", fill = "Order") +
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
-  scale_fill_manual(values=c(
-     "#126782",  "#023047",   "#425326",  "#817425",  "#FFB703",  "#FD9E02",   "#FB8500")) 
+pM <- plot_bar(MMYS, x = "bat.sp", fill = "Order") +
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() #+ 
+  scale_colour_brewer(palette="Set1") 
 pM
 
-cowplot::plot_grid(pB, pM)
+cowplot::plot_grid(pB, pM) + 
+  scale_colour_brewer(palette="Set1") 
 
 # Visualize and compare - families 
-tax_glom(B_prune, "Family") # 30 different families for MBRA
-tax_glom(M_prune, "Family") # 35 different families for MMYS
+tax_glom(MBRA, "Family") # 49 different families for MBRA
+tax_glom(MMYS, "Family") # 49 different families for MMYS
+
+tax_glom(MBRA, "Genus") # 101 different families for MBRA
+tax_glom(MMYS, "Genus") # 101 different families for MMYS
 
 # colourCount = length(unique(mtcars$hp))
 # getPalette = colorRampPalette(brewer.pal(9, "Set1"))
@@ -420,25 +441,28 @@ tax_glom(M_prune, "Family") # 35 different families for MMYS
 #   geom_histogram(aes(factor(hp)), fill=getPalette(colourCount)) + 
 #   theme(legend.position="right")
 
-colorcount1 <- 30 
-colorcount2 <- 35
 
-pB <- plot_bar(B_prune, x = "bat.sp", fill = "Family") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
-  scale_fill_manual(values = colorRampPalette(brewer.pal(11, "Spectral"))(colorcount1))
-pB
-
-pM <- plot_bar(M_prune, x = "bat.sp", fill = "Family") +
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
-  scale_fill_manual(values = colorRampPalette(brewer.pal(11, "Spectral"))(colorcount2))
-pM
-
-cowplot::plot_grid(pB, pM)
+### Other cool plotting options for later if I want to make something like this for sharing/publishing 
+# colorcount1 <- 30 
+# colorcount2 <- 35
+# 
+# pB <- plot_bar(B_prune, x = "bat.sp", fill = "Family") + 
+#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
+#   scale_fill_manual(values = colorRampPalette(brewer.pal(11, "Spectral"))(colorcount1))
+# pB
+# 
+# pM <- plot_bar(M_prune, x = "bat.sp", fill = "Family") +
+#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
+#   scale_fill_manual(values = colorRampPalette(brewer.pal(11, "Spectral"))(colorcount2))
+# pM
+# 
+# cowplot::plot_grid(pB, pM)
 
 
 ######################################################
 
-# Prevalence of the top 10 most abundant OTUs for both bat species from raw data 
+# Prevalence of the top 10 most abundant ASVs for both bat species from raw data 
+### Now there are some NAs in the top prey items - we may able to figure out what these are later by blasting the data through NCBI
 
 prevelancedf = apply(X = otu_table(bb_prune),
                  MARGIN = 1,
@@ -475,6 +499,9 @@ prevelancedf = data.frame(Prevalence = prevelancedf,
                       TotalAbundance = taxa_sums(MMYS),
                       tax_table(MMYS))
 prevelancedf[1:20,]
+
+
+
 
 ```
 
@@ -537,7 +564,7 @@ ordscore <- scores(bbord, choices=c(1,2,3,4), tidy = TRUE)
 ordscore <- as.data.frame(ordscore)
 ordscore <- cbind(rownames(ordscore), data.frame(ordscore, row.names=NULL))
 names(ordscore)[1] <- "Sample"
-#1412 obs of 7 vars 
+#1934 obs of 7 vars 
  
 ```
 
@@ -550,8 +577,23 @@ https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics
 
 # Convert Phyloseq object to dataframe
 bbdf = psmelt(bb_prune)
-#57540 obs of 19 vars 
+dim(bbdf)
+#88689    19
 
+summary(bbdf)
+names(bbdf)
+
+## Find the NAs 
+new_DF <- DF[is.na(DF$Var),]
+bbdf1<- bbdf[is.na(bbdf$Family),]
+### START HERE! 
+# 19317 obs of NA on at least the family level. 
+
+# But how many unique ASVs? 
+
+bbdf1$OTU <- as.factor(bbdf1$OTU)
+summary(bbdf1)
+        
 
 # remove NAs
 bbdf <- bbdf[complete.cases(bbdf),]
@@ -562,8 +604,11 @@ str(bbdf)
 # Add the NMDS scores 
 bbdf1 <- left_join(bbdf, ordscore, by = "Sample")
 names(bbdf1)
-summary(bbdf1)
+summary(bbdf1) # 411 unique levels of unknown ASVs 
 
+na_asv <- bbdf1 %>% distinct(OTU, .keep_all=F) 
+write.csv(na_asv, file=file.path(output_today,"unknown_asvs.csv")) 
+output_today
 
 ### START HERE 
 library(nlme)
