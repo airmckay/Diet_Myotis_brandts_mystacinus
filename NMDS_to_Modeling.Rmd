@@ -115,6 +115,8 @@ phylo #shows what our physeq object contains
 # sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
 # tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]
 
+
+
 sort(colSums(otu_table(phylo))) # 4000 reads per sample 
 
 #we remove all features that are unassigned on phylum level
@@ -178,8 +180,8 @@ batsbugs
   
 sort(colSums(otu_table(batsbugs)))
 quantile(colSums(otu_table(batsbugs)))
-#     0%    25%    50%    75%   100% 
-#   14.0 2374.0 3659.0 3957.5 4000.0 
+#   0%  25%  50%  75% 100% 
+# 4000 4000 4000 4000 4000 
 ```
 
 
@@ -309,6 +311,7 @@ How many prey items for MBRA and MMYS in the filtered data?
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
+# Taxa with positive sum across samples
 bb_prune <- prune_taxa(taxa_sums(batsbugs2) > 0, batsbugs2)
 ntaxa(bb_prune)
 # 1887
@@ -355,10 +358,7 @@ MBRA
 #"Trichoptera"
    "#FB8500"
 
-plot_taxa_prevalence(
-  MBRA, "Order") +
-  scale_colour_brewer(palette="Set1")
-
+plot_taxa_prevalence(MBRA, "Order") 
 quantile(colSums(otu_table(MBRA)))
 sort(colSums(otu_table(MBRA)))
 
@@ -403,25 +403,22 @@ MMYS
 #"Trichoptera"
    "#FB8500"
 
-plot_taxa_prevalence(MMYS, "Order") + 
-  scale_colour_brewer(palette="Set1")
-
+plot_taxa_prevalence(MMYS, "Order") 
 quantile(colSums(otu_table(MMYS)))
 sort(colSums(otu_table(MMYS)))
+
 ######################################################
 
 
 # Visualize and compare - ORders 
 
 pB <- plot_bar(MBRA, x = "bat.sp", fill = "Order") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() #+ 
-  scale_colour_brewer(palette="Set1")
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
 pB
 
 
 pM <- plot_bar(MMYS, x = "bat.sp", fill = "Order") +
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() #+ 
-  scale_colour_brewer(palette="Set1") 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
 pM
 
 cowplot::plot_grid(pB, pM) + 
@@ -502,9 +499,94 @@ prevelancedf[1:20,]
 
 
 
+########################################################
+
+## Find the NAs 
+
+test <- left_join(bb_prune, seqs)
+
+# Convert Phyloseq object to dataframe
+bbdf = psmelt(bb_prune)
+dim(bbdf)
+#88689    19
+
+
+summary(bbdf)
+names(bbdf)
+#new_DF <- DF[is.na(DF$Var),]
+bbdf1<- bbdf[is.na(bbdf$Family),]
+### START HERE! 
+# 19317 obs of NA on at least the family level. 
+
+# But how many unique ASVs? 
+
+bbdf1$OTU <- as.factor(bbdf1$OTU)
+summary(bbdf1)
+        
+
+# remove NAs
+bbdf <- bbdf[complete.cases(bbdf),]
+#49800 obs of 19 vars
+summary(bbdf)
+str(bbdf)
+
+# Add the NMDS scores 
+bbdf1 <- left_join(bbdf, ordscore, by = "Sample")
+names(bbdf1)
+summary(bbdf1) # 411 unique levels of unknown ASVs 
+
+na_asv <- bbdf1 %>% distinct(OTU, .keep_all=T) 
+write.csv(na_asv, file=file.path(output_today,"unknown_asvs.csv")) 
+output_today
+
+## Check which sequences are related to these features
+seqs <- read_qza("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Analysis archive/bat_repr-seq.qza")
+str(seqs)
+seqs$OTU <- seqs$uuid
+dim(seqs)
+dim(na_asv)
+
+na_seq <- cross_join(na_asv, seq1, copy = TRUE)
+dim(na_seq)
+# 2065686      20
+
+na_seq1 <- na_seq %>% distinct(OTU, .keep_all = TRUE) 
+# write.csv(na_seq1, file=file.path(output_today,"unknown_asvs_with_sequences.csv")) 
+
+na_seq2 <- na_seq1 %>% dplyr::select(OTU, x)
+# write.csv(na_seq2, file=file.path(output_today,"unknown_asvs_with_sequences_only.csv")) 
+
+fasta_prep <- na_seq2 %>% rename(seqs = x, Names = OTU)
+
+seqlist <- as.list(fasta_prep$seqs)
+seqnames <- as.list(fasta_prep$Names)
 
 ```
 
+## NCBI BLAST for unknown features  
+
+vignette: https://rsh249.github.io/bioinformatics/rBlast.html#get_data
+https://github.com/mhahsler/rBLAST/blob/master/README.md
+
+
+```{r}
+library(seqinr)
+library(taxonomizr)
+#install.packages("devtools")
+#devtools::install_github("mhahsler/rBLAST")
+library(rBLAST)
+
+fname <- tempfile(pattern = "UnknownPrey", tmpdir = output_today, fileext = ".fasta")
+write.fasta(seqlist, names = seqnames, as.string = FALSE, file.out =fname)
+fname
+
+b1 <- blast("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11a/UnknownPrey.fasta")
+
+# Example data 
+# seq <- readRNAStringSet(system.file("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11a/unknown_asvs_with_sequences_only.csv"), package = "rBLAST") 
+
+
+```
 
 
 
@@ -575,40 +657,6 @@ https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
-# Convert Phyloseq object to dataframe
-bbdf = psmelt(bb_prune)
-dim(bbdf)
-#88689    19
-
-summary(bbdf)
-names(bbdf)
-
-## Find the NAs 
-new_DF <- DF[is.na(DF$Var),]
-bbdf1<- bbdf[is.na(bbdf$Family),]
-### START HERE! 
-# 19317 obs of NA on at least the family level. 
-
-# But how many unique ASVs? 
-
-bbdf1$OTU <- as.factor(bbdf1$OTU)
-summary(bbdf1)
-        
-
-# remove NAs
-bbdf <- bbdf[complete.cases(bbdf),]
-#49800 obs of 19 vars
-summary(bbdf)
-str(bbdf)
-
-# Add the NMDS scores 
-bbdf1 <- left_join(bbdf, ordscore, by = "Sample")
-names(bbdf1)
-summary(bbdf1) # 411 unique levels of unknown ASVs 
-
-na_asv <- bbdf1 %>% distinct(OTU, .keep_all=F) 
-write.csv(na_asv, file=file.path(output_today,"unknown_asvs.csv")) 
-output_today
 
 ### START HERE 
 library(nlme)
