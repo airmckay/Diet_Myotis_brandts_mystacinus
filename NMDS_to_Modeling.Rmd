@@ -561,6 +561,11 @@ fasta_prep <- na_seq2 %>% rename(seqs = x, Names = OTU)
 seqlist <- as.list(fasta_prep$seqs)
 seqnames <- as.list(fasta_prep$Names)
 
+test1 <- unique(seqlist)
+test1
+## There is just one sequence that is related to all of these features... 
+# "AGATATTGGAACTATATATAATATAAAAATAGCTTGATCAGGAATAGTGGGGACTTCTTTAAGTATATTAATTCGAGCTGAATTAGGACATCCTGGGGCATTAATTGGAGATGATCAAATTTATAATGTAATTGTTACTGCTCATGCTTTCATTATAATTTTTTTTATAGTAATACCAATTATAATT"
+
 ```
 
 ## NCBI BLAST for unknown features  
@@ -576,15 +581,43 @@ library(taxonomizr)
 #devtools::install_github("mhahsler/rBLAST")
 library(rBLAST)
 
-# fname <- tempfile(pattern = "UnknownPrey", tmpdir = tempdir(), fileext = ".fasta")
-write.fasta(seqlist, names = seqnames, as.string = FALSE, file.out = file.path(output_today,"UnknownPrey1.fasta")) 
+BiocManager::install("annotate")
 
+library(annotate)
+
+write.fasta(seqlist, names = seqnames, as.string = FALSE, file.out = file.path(output_today,"UnknownPrey1.fasta")) 
 thisfasta <- read.fasta(file = file.path(output_today, "UnknownPrey1.fasta"))  
 
-b10 <- makeblastdb(file = "~/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus/TryThis.fasta", dbtype = "nucl", args = "")
-BL <- blast(db = "~/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus/TryThis.fasta", type = "blastn")
-# Example data 
-# seq <- readRNAStringSet(system.file("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11a/unknown_asvs_with_sequences_only.csv"), package = "rBLAST") 
+output_today
+# this works 
+
+
+## These do not: 
+
+
+# BL <- blast(db = "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11/UnknownPrey1", type = "blastn")
+# 
+# # Error in blast(db = "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11/UnknownPrey1",  : 
+# #   Database name or path contains spaced. rename or move database to remove spaces (current path: C:\Users\apmc\OneDrive - Norwegian University of Life Sciences\1. Nittedal 2018-2020\Nittedal_Main\Analyses\Outputs\Nittedal_modeling pt1_2023-09-11/UnknownPrey1)
+# 
+# # If I copy the fasta file to a directory where there are no spaces I still run into issues
+# 
+# fname <- tempfile(pattern = "UnknownPrey", tmpdir = tempdir(), fileext = ".fasta")
+# write.fasta(seqlist, names = seqnames, file.out = fname)
+# fname # "C:\\NMBU\\TEMP\\Rtmpo1IUVs\\UnknownPrey59ec66b66f3.fasta"
+# 
+# BL <- rBLAST::blast(db = fname, type = "blastn")
+# # Error: Executable for blastn not found! Please make sure that the software is correctly installed and, if necessary, path variables are set.
+# 
+# # The package appears to be installed just fine so I am not sure what other software should be included. 
+# # One troubleshooting option suggested has been to use the following function before running blast() 
+# 
+# b10 <- rBLAST::makeblastdb(file = fname, dbtype = "nucl", args = "")
+# #Error: Executable for makeblastdb not found! Please make sure that the software is correctly installed and, if necessary, path variables are set.
+
+# test <- annotate::blastSequences(fasta_prep$seqs)
+# test <- blastSequences(seqlist)
+# # Error in parse_url(url) : length(url) == 1 is not TRUE
 
 
 ```
