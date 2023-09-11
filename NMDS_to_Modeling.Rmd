@@ -576,12 +576,13 @@ library(taxonomizr)
 #devtools::install_github("mhahsler/rBLAST")
 library(rBLAST)
 
-fname <- tempfile(pattern = "UnknownPrey", tmpdir = output_today, fileext = ".fasta")
-write.fasta(seqlist, names = seqnames, as.string = FALSE, file.out =fname)
-fname
+# fname <- tempfile(pattern = "UnknownPrey", tmpdir = tempdir(), fileext = ".fasta")
+write.fasta(seqlist, names = seqnames, as.string = FALSE, file.out = file.path(output_today,"UnknownPrey1.fasta")) 
 
-b1 <- blast("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11a/UnknownPrey.fasta")
+thisfasta <- read.fasta(file = file.path(output_today, "UnknownPrey1.fasta"))  
 
+b10 <- makeblastdb(file = "~/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus/TryThis.fasta", dbtype = "nucl", args = "")
+BL <- blast(db = "~/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus/TryThis.fasta", type = "blastn")
 # Example data 
 # seq <- readRNAStringSet(system.file("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11a/unknown_asvs_with_sequences_only.csv"), package = "rBLAST") 
 
