@@ -300,14 +300,8 @@ print(plot.composition.relAbun)
 ```
 
 
+## Finding the unknown prey items associated with NA features. 
 
-## Summarizing and visualizing RAW data between the two bat species
-
-*You can more easily see the differences* in this Google Sheet where I copied these summaries: https://docs.google.com/spreadsheets/d/11VWNq5zbMou82J_H8RsgL3eJWfj56kPKXcp8vh6KHcA/edit#gid=0 
-
-*Mostly, there aren't any difference except in abundance of prey items for these top 10 OTUs* 
-
-How many prey items for MBRA and MMYS in the filtered data? 
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
@@ -319,6 +313,78 @@ ntaxa(batsbugs2)
 # 1887
 
 
+############# Find the NAs 
+
+# Convert Phyloseq object to dataframe
+bbdf = psmelt(bb_prune)
+dim(bbdf)
+#88689    19
+
+
+summary(bbdf)
+names(bbdf)
+#new_DF <- DF[is.na(DF$Var),]
+bbdf1<- bbdf[is.na(bbdf$Family),]
+summary(bbdf1)
+### START HERE! 
+# 19317 obs of NA on at least the family level. 
+
+# But how many unique ASVs? 
+bbdf1$OTU <- as.factor(bbdf1$OTU)
+summary(bbdf1)
+
+
+na_asv <- bbdf1 %>% distinct(OTU, .keep_all=T) 
+# 411 distinct ASV features that are NA 
+# write.csv(na_asv, file=file.path(output_today,"unknown_asvs.csv")) 
+# output_today
+
+## Check which sequences are related to these features
+seqs <- read_qza("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Analysis archive/bat_repr-seq.qza")
+
+seqs1 <- seqs1$data # extract the data with the DNA sequences 
+na_asv$uuid <- na_asv$OTU
+
+na_seq <- cross_join(na_asv, seqs1, copy = TRUE)
+dim(na_seq)
+# 2065686      21
+
+na_seq1 <- na_seq %>% distinct(OTU, .keep_all = TRUE) 
+dim(na_seq)
+#write.csv(na_seq1, file=file.path(output_today,"unknown_asvs_with_sequences.csv")) 
+
+na_seq2 <- na_seq1 %>% dplyr::rename(sequences = x) %>% dplyr::select(OTU, sequences)
+#write.csv(na_seq2, file=file.path(output_today,"unknown_asvs_with_sequences_only.csv"))
+
+test1 <- unique(na_seq2$sequences)
+test1
+## There is just one sequence that is related to all of these features... 
+# "AGATATTGGAACTATATATAATATAAAAATAGCTTGATCAGGAATAGTGGGGACTTCTTTAAGTATATTAATTCGAGCTGAATTAGGACATCCTGGGGCATTAATTGGAGATGATCAAATTTATAATGTAATTGTTACTGCTCATGCTTTCATTATAATTTTTTTTATAGTAATACCAATTATAATT"
+
+# I manually ran this sequence through blastn on the NCBI Blast+ webpage. 
+# The results of the blast are saved :
+# C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Analysis archive/BLASToutput_UnknownNA_taxa.txt
+
+# Basically, there were a few different species of Ula (crane flies) that this most likely be. This is the same sequence for all 411 missing features. So now the next step is to insert the family and genus for Ula spp. for all the missing features. 
+
+unknowns <- list(unique(na_seq2$OTU))
+
+# suppressPackageStartupMessages(library(microViz))
+tax_fix_interactive(batsbugs2)
+
+batsbugsx <- batsbugs2%>%
+ tax_fix(min_length = 0,
+  unknowns = c("NA"),
+  sep = " ", anon_unique = TRUE,
+  suffix_rank = "classified")
+
+library(corncob)
+## START HERE
+
+```
+
+###  Plotting differences between MBRA and MMYS and summarizing top prevalent prey 
+```{r}
 #Subset the raw data by bat species and summarize OTU abundance
 
 # MBRA 
@@ -428,8 +494,8 @@ cowplot::plot_grid(pB, pM) +
 tax_glom(MBRA, "Family") # 49 different families for MBRA
 tax_glom(MMYS, "Family") # 49 different families for MMYS
 
-tax_glom(MBRA, "Genus") # 101 different families for MBRA
-tax_glom(MMYS, "Genus") # 101 different families for MMYS
+tax_glom(MBRA, "Genus") # 101 different Genera for MBRA
+tax_glom(MMYS, "Genus") # 101 different Genera for MMYS
 
 # colourCount = length(unique(mtcars$hp))
 # getPalette = colorRampPalette(brewer.pal(9, "Set1"))
@@ -501,125 +567,6 @@ prevelancedf[1:20,]
 
 ########################################################
 
-## Find the NAs 
-
-test <- left_join(bb_prune, seqs)
-
-# Convert Phyloseq object to dataframe
-bbdf = psmelt(bb_prune)
-dim(bbdf)
-#88689    19
-
-
-summary(bbdf)
-names(bbdf)
-#new_DF <- DF[is.na(DF$Var),]
-bbdf1<- bbdf[is.na(bbdf$Family),]
-### START HERE! 
-# 19317 obs of NA on at least the family level. 
-
-# But how many unique ASVs? 
-
-bbdf1$OTU <- as.factor(bbdf1$OTU)
-summary(bbdf1)
-        
-
-# remove NAs
-bbdf <- bbdf[complete.cases(bbdf),]
-#49800 obs of 19 vars
-summary(bbdf)
-str(bbdf)
-
-# Add the NMDS scores 
-bbdf1 <- left_join(bbdf, ordscore, by = "Sample")
-names(bbdf1)
-summary(bbdf1) # 411 unique levels of unknown ASVs 
-
-na_asv <- bbdf1 %>% distinct(OTU, .keep_all=T) 
-write.csv(na_asv, file=file.path(output_today,"unknown_asvs.csv")) 
-output_today
-
-## Check which sequences are related to these features
-seqs <- read_qza("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Analysis archive/bat_repr-seq.qza")
-str(seqs)
-seqs$OTU <- seqs$uuid
-dim(seqs)
-dim(na_asv)
-
-na_seq <- cross_join(na_asv, seq1, copy = TRUE)
-dim(na_seq)
-# 2065686      20
-
-na_seq1 <- na_seq %>% distinct(OTU, .keep_all = TRUE) 
-# write.csv(na_seq1, file=file.path(output_today,"unknown_asvs_with_sequences.csv")) 
-
-na_seq2 <- na_seq1 %>% dplyr::select(OTU, x)
-# write.csv(na_seq2, file=file.path(output_today,"unknown_asvs_with_sequences_only.csv")) 
-
-fasta_prep <- na_seq2 %>% rename(seqs = x, Names = OTU)
-
-seqlist <- as.list(fasta_prep$seqs)
-seqnames <- as.list(fasta_prep$Names)
-
-test1 <- unique(seqlist)
-test1
-## There is just one sequence that is related to all of these features... 
-# "AGATATTGGAACTATATATAATATAAAAATAGCTTGATCAGGAATAGTGGGGACTTCTTTAAGTATATTAATTCGAGCTGAATTAGGACATCCTGGGGCATTAATTGGAGATGATCAAATTTATAATGTAATTGTTACTGCTCATGCTTTCATTATAATTTTTTTTATAGTAATACCAATTATAATT"
-
-```
-
-## NCBI BLAST for unknown features  
-
-vignette: https://rsh249.github.io/bioinformatics/rBlast.html#get_data
-https://github.com/mhahsler/rBLAST/blob/master/README.md
-
-
-```{r}
-library(seqinr)
-library(taxonomizr)
-#install.packages("devtools")
-#devtools::install_github("mhahsler/rBLAST")
-library(rBLAST)
-
-BiocManager::install("annotate")
-
-library(annotate)
-
-write.fasta(seqlist, names = seqnames, as.string = FALSE, file.out = file.path(output_today,"UnknownPrey1.fasta")) 
-thisfasta <- read.fasta(file = file.path(output_today, "UnknownPrey1.fasta"))  
-
-output_today
-# this works 
-
-
-## These do not: 
-
-
-# BL <- blast(db = "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11/UnknownPrey1", type = "blastn")
-# 
-# # Error in blast(db = "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-11/UnknownPrey1",  : 
-# #   Database name or path contains spaced. rename or move database to remove spaces (current path: C:\Users\apmc\OneDrive - Norwegian University of Life Sciences\1. Nittedal 2018-2020\Nittedal_Main\Analyses\Outputs\Nittedal_modeling pt1_2023-09-11/UnknownPrey1)
-# 
-# # If I copy the fasta file to a directory where there are no spaces I still run into issues
-# 
-# fname <- tempfile(pattern = "UnknownPrey", tmpdir = tempdir(), fileext = ".fasta")
-# write.fasta(seqlist, names = seqnames, file.out = fname)
-# fname # "C:\\NMBU\\TEMP\\Rtmpo1IUVs\\UnknownPrey59ec66b66f3.fasta"
-# 
-# BL <- rBLAST::blast(db = fname, type = "blastn")
-# # Error: Executable for blastn not found! Please make sure that the software is correctly installed and, if necessary, path variables are set.
-# 
-# # The package appears to be installed just fine so I am not sure what other software should be included. 
-# # One troubleshooting option suggested has been to use the following function before running blast() 
-# 
-# b10 <- rBLAST::makeblastdb(file = fname, dbtype = "nucl", args = "")
-# #Error: Executable for makeblastdb not found! Please make sure that the software is correctly installed and, if necessary, path variables are set.
-
-# test <- annotate::blastSequences(fasta_prep$seqs)
-# test <- blastSequences(seqlist)
-# # Error in parse_url(url) : length(url) == 1 is not TRUE
-
-
 ```
 
 
@@ -627,12 +574,12 @@ output_today
  
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
-bbord <- ordinate(bb_prune, "NMDS", distance="bray", k = 4)
-bbord
 
 
 ## Remember. This changes each time you run it. Eventually, should just save a csv file of one output for this and reuse it in a separate analysis probably. 
-
+bbord <- ordinate(bb_prune, "NMDS", distance="bray", k = 4)
+bbord
+        
 
 # envfit() from vegan to stack on top of ordination. Typically best for continuous variables, also accepts factor variables. This is an alternative to ANOVA. Not a real statistcal test. 
 
