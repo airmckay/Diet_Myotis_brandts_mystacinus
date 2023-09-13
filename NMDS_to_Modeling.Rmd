@@ -62,6 +62,9 @@ library(RColorBrewer)
 # The following initializes usage of Bioc devel
 # BiocManager::install(version='devel')
 
+#remotes::install_github("mikemc/speedyseq")
+library(speedyseq)
+
 library(devtools) # Load the devtools package
 # install_github("microbiome/microbiome") # Install the package
 # devtools::install_github("microsud/microbiomeutilities")
@@ -367,19 +370,102 @@ test1
 
 # Basically, there were a few different species of Ula (crane flies) that this most likely be. This is the same sequence for all 411 missing features. So now the next step is to insert the family and genus for Ula spp. for all the missing features. 
 
-unknowns <- list(unique(na_seq2$OTU))
+# Create a list of all the unknown feature IDs
+unknowns <- as.character(unique(na_seq2$OTU))
+head(unknowns)
+unknowns
 
+
+# Visualize the tax table 
 # suppressPackageStartupMessages(library(microViz))
 tax_fix_interactive(batsbugs2)
 
+# Clean the tax names 
 batsbugsx <- batsbugs2%>%
  tax_fix(min_length = 0,
   unknowns = c("NA"),
   sep = " ", anon_unique = TRUE,
   suffix_rank = "classified")
 
-library(corncob)
-## START HERE
+# Subset to only include the unknown feature IDs , then change unknown Diptera to Ula spp.
+my_subset <- subset(otu_table(batsbugsx), rownames(otu_table(batsbugsx)) %in% unknowns)
+
+new_physeq <- merge_phyloseq(my_subset, tax_table(batsbugsx), sample_data(batsbugsx))
+
+plot_taxa_prevalence(new_physeq, "Family")
+
+new_physeq1 <- new_physeq %>% 
+  mutate_tax_table(
+  Family = case_when(
+  Order  == "Diptera" ~ "Pediciidae", 
+  .default = as.character(Family))) %>% 
+  mutate_tax_table(Genus = case_when(
+  Order  == "Diptera" ~ "Ula",
+  .default = as.character(Genus))) %>% 
+  mutate_tax_table(Species = case_when(
+  Order  == "Diptera" ~ "Ula spp.",
+  .default = as.character(Species)))
+
+new_physeq1
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:          [ 411 taxa and 47 samples ]:
+# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# tax_table()   Taxonomy Table:     [ 411 taxa by 7 taxonomic ranks ]:
+# taxa are rows
+
+plot_taxa_prevalence(new_physeq1, "Family")
+
+pB <- plot_bar(new_physeq, x = "bat.sp", fill = "Genus") + 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+pB
+
+pB1 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Genus") + 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+pB1
+
+pB2 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Species") + 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+pB2
+
+# what were the OTUs we changed in the end? 
+
+altered <- rownames_to_column(as.data.frame(new_physeq1@tax_table@.Data), "OTU")
+altered1 <- altered %>% filter(Family == "Pediciidae") # 380 changed obs! 
+
+nothis <- as.character(unique(altered1$OTU))
+
+# That worked! All the Diptera are now in the family Pediciidae with Genus Ula. 
+
+## Now I just need to merge it back in:
+
+
+oldtax <- rownames_to_column(as.data.frame(batsbugsx@tax_table@.Data), "OTU") %>% 
+  filter(!OTU %in% nothis)  # use the cleaned whole dataset but remove the altered OTUs
+#1507
+
+newtax <- rownames_to_column(as.data.frame(new_physeq1@tax_table@.Data), "OTU") %>% filter(Family == "Pediciidae") # Now have only the data of the edited OTUs
+# 380 obs
+
+mergetax <- merge(newtax, oldtax, all.x = TRUE, all.y = TRUE) #1887 obs
+# 1507+380 = 1887 , good! 
+
+# Now re-insert this data back into the OTU table 
+
+taxmat = as.matrix(mergetax) # also 1887 taxa 
+test <- batsbugsx@tax_table # 1887 taxa 
+
+rownames(taxmat) <- taxmat[,1]
+taxmat <- taxmat[,-1]
+TAX = tax_table(taxmat)
+
+batsbugsy <- merge_phyloseq(TAX, sample_data(batsbugsx), otu_table(batsbugsx))
+batsbugsy
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:          [ 1887 taxa and 47 samples ]:
+# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# tax_table()   Taxonomy Table:     [ 1887 taxa by 7 taxonomic ranks ]:
+# taxa are rows
+
 
 ```
 
@@ -387,42 +473,13 @@ library(corncob)
 ```{r}
 #Subset the raw data by bat species and summarize OTU abundance
 
+#tax_fix_interactive(batsbugsy)
+
 # MBRA 
 
-MBRA <- subset_samples(batsbugs2, bat.sp == "MBRA")
+MBRA <- subset_samples(batsbugsy, bat.sp == "MBRA")
 MBRA
-# phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1887 taxa and 16 samples ]
-# sample_data() Sample Data:       [ 16 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1887 taxa by 7 taxonomic ranks ]
 
-# B_prune = prune_taxa(taxa_sums(MBRA) > 0, MBRA)
-# ntaxa(B_prune)
-# B_prune
-# # phyloseq-class experiment-level object
-# # otu_table()   OTU Table:         [ 832 taxa and 16 samples ]
-# # sample_data() Sample Data:       [ 16 samples by 9 sample variables ]
-# # tax_table()   Taxonomy Table:    [ 832 taxa by 7 taxonomic ranks ]
-
-# For future potential color pallettes
-
-# Diptera", 
- "#126782"
-
-#"Hemiptera", 
-  "#A5E1F3"
-  
-#"Hymenoptera", 
-  "#023047"
-
-#"Lepidoptera", 
-  "#425326"
-   
-#"Neuroptera", 
-   "#817425"
-
-#"Trichoptera"
-   "#FB8500"
 
 plot_taxa_prevalence(MBRA, "Order") 
 quantile(colSums(otu_table(MBRA)))
@@ -431,43 +488,8 @@ sort(colSums(otu_table(MBRA)))
 ######################################################
 
 #MMYS
-MMYS <- subset_samples(batsbugs2, bat.sp == "MMYS")
+MMYS <- subset_samples(batsbugsy, bat.sp == "MMYS")
 MMYS
-# phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1887 taxa and 31 samples ]
-# sample_data() Sample Data:       [ 31 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1887 taxa by 7 taxonomic ranks ]
-
-# M_prune = prune_taxa(taxa_sums(MMYS) > 0, MMYS)
-# ntaxa(M_prune)
-# M_prune
-# phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1249 taxa and 31 samples ]
-# sample_data() Sample Data:       [ 31 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 1249 taxa by 7 taxonomic ranks ]
-
-#Mtaxaorder <- 
- 
-# Diptera", 
-  "#126782"
-  
-#"Hymenoptera", 
-  "#023047"
-
-#"Lepidoptera", 
-  "#425326"
-   
-#"Neuroptera", 
-   "#817425"
-
-#"Orthoptera",
-   "#FFB703"
-
-#"Psocodea", 
-   "#FD9E02"
-
-#"Trichoptera"
-   "#FB8500"
 
 plot_taxa_prevalence(MMYS, "Order") 
 quantile(colSums(otu_table(MMYS)))
@@ -491,35 +513,12 @@ cowplot::plot_grid(pB, pM) +
   scale_colour_brewer(palette="Set1") 
 
 # Visualize and compare - families 
-tax_glom(MBRA, "Family") # 49 different families for MBRA
-tax_glom(MMYS, "Family") # 49 different families for MMYS
+tax_glom(MBRA, "Family") # 53 different families for MBRA
+tax_glom(MMYS, "Family") # 53 different families for MMYS
 
-tax_glom(MBRA, "Genus") # 101 different Genera for MBRA
-tax_glom(MMYS, "Genus") # 101 different Genera for MMYS
+tax_glom(MBRA, "Genus") # 117 different Genera for MBRA
+tax_glom(MMYS, "Genus") # 117 different Genera for MMYS
 
-# colourCount = length(unique(mtcars$hp))
-# getPalette = colorRampPalette(brewer.pal(9, "Set1"))
-#  
-# ggplot(mtcars) + 
-#   geom_histogram(aes(factor(hp)), fill=getPalette(colourCount)) + 
-#   theme(legend.position="right")
-
-
-### Other cool plotting options for later if I want to make something like this for sharing/publishing 
-# colorcount1 <- 30 
-# colorcount2 <- 35
-# 
-# pB <- plot_bar(B_prune, x = "bat.sp", fill = "Family") + 
-#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
-#   scale_fill_manual(values = colorRampPalette(brewer.pal(11, "Spectral"))(colorcount1))
-# pB
-# 
-# pM <- plot_bar(M_prune, x = "bat.sp", fill = "Family") +
-#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
-#   scale_fill_manual(values = colorRampPalette(brewer.pal(11, "Spectral"))(colorcount2))
-# pM
-# 
-# cowplot::plot_grid(pB, pM)
 
 
 ######################################################
@@ -527,13 +526,13 @@ tax_glom(MMYS, "Genus") # 101 different Genera for MMYS
 # Prevalence of the top 10 most abundant ASVs for both bat species from raw data 
 ### Now there are some NAs in the top prey items - we may able to figure out what these are later by blasting the data through NCBI
 
-prevelancedf = apply(X = otu_table(bb_prune),
+prevelancedf = apply(X = otu_table(batsbugsy),
                  MARGIN = 1,
                  FUN = function(x){sum(x > 0)})
 # Add taxonomy and total read counts to this data.frame
 prevelancedf = data.frame(Prevalence = prevelancedf,
-                      TotalAbundance = taxa_sums(bb_prune),
-                      tax_table(bb_prune))
+                      TotalAbundance = taxa_sums(batsbugsy),
+                      tax_table(batsbugsy))
 prevelancedf[1:20,]
 
 
@@ -564,7 +563,6 @@ prevelancedf = data.frame(Prevalence = prevelancedf,
 prevelancedf[1:20,]
 
 
-
 ########################################################
 
 ```
@@ -577,45 +575,45 @@ prevelancedf[1:20,]
 
 
 ## Remember. This changes each time you run it. Eventually, should just save a csv file of one output for this and reuse it in a separate analysis probably. 
-bbord <- ordinate(bb_prune, "NMDS", distance="bray", k = 4)
+bbord <- ordinate(batsbugsy, "NMDS", distance="bray", k = 5)
 bbord
         
 
 # envfit() from vegan to stack on top of ordination. Typically best for continuous variables, also accepts factor variables. This is an alternative to ANOVA. Not a real statistcal test. 
 
-O12<- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(1,2)) + 
+O12<- plot_ordination(batsbugsy, bbord, color = "bat.sp", axes = c(1,2)) + 
   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
   theme_bw() + 
   ggtitle("NMDS1 and 2 with Bray-Curtis difference index ")
 O12
 
 
-O13<- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(1,3)) + 
+O13<- plot_ordination(batsbugsy, bbord, color = "bat.sp", axes = c(1,3)) + 
   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
   theme_bw()+ 
   ggtitle("NMDS1 and 3 with Bray-Curtis difference index ")
 O13
 
-O14<- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(1,4)) + 
+O14<- plot_ordination(batsbugsy, bbord, color = "bat.sp", axes = c(1,4)) + 
   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
   theme_bw() + 
   ggtitle("NMDS1 and 4 with Bray-Curtis difference index ")
 O14 
 
 
-O23 <- plot_ordination(bb_prune, bbord, color = "bat.sp", axes = c(2,3)) + 
+O23 <- plot_ordination(batsbugsy, bbord, color = "bat.sp", axes = c(2,3)) + 
   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
   theme_bw() + 
   ggtitle("NMDS 2 and 3 with Bray-Curtis difference index ")
 O23 
 
-O24 <- plot_ordination(batsbugs2, bbord, color = "bat.sp", axes = c(2,4)) + 
+O24 <- plot_ordination(batsbugsy, bbord, color = "bat.sp", axes = c(2,4)) + 
   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
   theme_bw() + 
   ggtitle("NMDS 2 and 4 with Bray-Curtis difference index ")
 O24
 
-O34 <- plot_ordination(batsbugs2, bbord, color = "bat.sp", axes = c(3,4)) + 
+O34 <- plot_ordination(batsbugsy, bbord, color = "bat.sp", axes = c(3,4)) + 
   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
   theme_bw() + 
   ggtitle("NMDS 3 and 4 with Bray-Curtis difference index ")
@@ -623,11 +621,11 @@ O34
 
 
 #Create a dataframe with NMDS scores
-ordscore <- scores(bbord, choices=c(1,2,3,4), tidy = TRUE)
+ordscore <- scores(bbord, choices=c(1,2,3,4,5), tidy = TRUE)
 ordscore <- as.data.frame(ordscore)
 ordscore <- cbind(rownames(ordscore), data.frame(ordscore, row.names=NULL))
 names(ordscore)[1] <- "Sample"
-#1934 obs of 7 vars 
+#1934 obs of 8 vars 
  
 ```
 
@@ -637,37 +635,27 @@ https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics
 
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+bbdf <- ps_melt(batsbugsy) # convert to a df 
+bbdf1 <- left_join(bbdf, ordscore) # add the NMDS scores
 
+## use this data frame for modeling further: 
 
-### START HERE 
+#write.csv(bbdf1, file=file.path(output_today,"mbra_mmys_NMDS_Scores_diet.csv"))
+
+### use NMDS1 as the response variable 
 library(nlme)
-m1 <- lme(NMDS1~bat.sp + year, random=~1|label, data=bbdf1)
+
+# simplest model 
+m1 <- lme(NMDS1~bat.sp, random=~1|label, data=bbdf1)
 summary(m1)
 
-
-m2 <- lme(NMDS2~bat.sp + year, random=~1|label,data=bbdf1)
+# +year
+m2 <- lme(NMDS1~bat.sp + year, random=~1|label,data=bbdf1)
 summary(m2)
 
-
-m3 <- lme(NMDS3~bat.sp + year, random=~1|label,data=bbdf1)
+# species*year interaction 
+m3 <- lme(NMDS1~bat.sp + bat.sp*year, random=~1|label, data=bbdf1)
 summary(m3)
-
-
-m4 <- lme(NMDS4~bat.sp + year, random=~1|label,data=bbdf1)
-summary(m4)
-
-################ Test with year*bat.sp interaction 
-m1_int <- lme(NMDS1~bat.sp + bat.sp*year, random=~1|label,data=bbdf1)
-summary(m1_int)
-
-m2_int <- lme(NMDS2~bat.sp + bat.sp*year, random=~1|label,data=bbdf1)
-summary(m2_int)
-
-m3_int <- lme(NMDS3~bat.sp + bat.sp*year, random=~1|label,data=bbdf1)
-summary(m3_int)
-
-m4_int <- lme(NMDS4~bat.sp + bat.sp*year, random=~1|label,data=bbdf1)
-summary(m4_int)
 
 
 ## Ask Katrine what the best way is to compare model selection for these kinds of NMDS models... 
@@ -683,10 +671,13 @@ summary(m4_int)
 par(mfrow=c(2, 1))
 plot(allEffects(m1), type = "response")
 plot(allEffects(m2), type = "response")
+plot(allEffects(m3), type = "response")
+
+
 
 # https://rdrr.io/cran/sjPlot/f/vignettes/plot_marginal_effects.Rmd
 
 #plotting marginal effects
 #plot_model(mod1, type = "pred", terms = "bat.sp")
-plot_model(m1, type = "eff", terms = "bat.sp")
+plot_model(m3, type = "eff", terms = "bat.sp")
 
