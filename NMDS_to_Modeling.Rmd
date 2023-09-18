@@ -7,7 +7,6 @@ output: html_document
 ---
 
 
-
 ### Previous versions of the script: 
 
 title: "IBBM Diet Analyses"
@@ -22,7 +21,12 @@ date: "16 2 2021"
 output: html_document
 
 
-### Prepare work space and load packages 
+## Important: 
+** The data is already normalized via SRS (scaling with ranked subsampling)
+
+
+
+### Prepare work space and load packages
 
 ```{r setup, include=FALSE}
 library(rlang)
@@ -188,7 +192,7 @@ quantile(colSums(otu_table(batsbugs)))
 ```
 
 
-### Filter and Normalize
+### Filter 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
 #Filter1 = batbugs1 
@@ -288,7 +292,8 @@ bb.order.rel <- transform(bb2.order, "compositional")
 plot_bar(bb.order.rel, x="bat.sp", fill = "Order")+ xlab(NULL) + 
   geom_bar(stat="identity") + 
   labs( y = "Relative abundance",
-  title = "Relative Abundance of Prey Item by Order")  
+  title = "Relative Abundance of Prey Item by Order")  +
+  theme_bw()
 
 
 
@@ -297,7 +302,9 @@ plot_composition(bb.order.rel, fill = "Order", average_by = "bat.sp") +
         title = "Relative Abundance of Prey Item by Order") +
   theme_bw()
 
-plot.composition.relAbun <- plot_composition(bb.order.rel, sample.sort = "bat.sp") + facet_wrap(~ bb.order.rel@sam_data$bat.sp)
+plot.composition.relAbun <- plot_composition(bb.order.rel, sample.sort = "bat.sp") + 
+  facet_wrap(~ bb.order.rel@sam_data$bat.sp) +
+  theme_bw() + theme(text = element_text(size = 20))   
 print(plot.composition.relAbun)
 
 ```
@@ -329,7 +336,6 @@ names(bbdf)
 #new_DF <- DF[is.na(DF$Var),]
 bbdf1<- bbdf[is.na(bbdf$Family),]
 summary(bbdf1)
-### START HERE! 
 # 19317 obs of NA on at least the family level. 
 
 # But how many unique ASVs? 
@@ -345,7 +351,7 @@ na_asv <- bbdf1 %>% distinct(OTU, .keep_all=T)
 ## Check which sequences are related to these features
 seqs <- read_qza("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Analysis archive/bat_repr-seq.qza")
 
-seqs1 <- seqs1$data # extract the data with the DNA sequences 
+seqs1 <- seqs$data # extract the data with the DNA sequences 
 na_asv$uuid <- na_asv$OTU
 
 na_seq <- cross_join(na_asv, seqs1, copy = TRUE)
@@ -378,7 +384,7 @@ unknowns
 
 # Visualize the tax table 
 # suppressPackageStartupMessages(library(microViz))
-tax_fix_interactive(batsbugs2)
+#tax_fix_interactive(batsbugs2)
 
 # Clean the tax names 
 batsbugsx <- batsbugs2%>%
@@ -501,7 +507,7 @@ sort(colSums(otu_table(MMYS)))
 # Visualize and compare - ORders 
 
 pB <- plot_bar(MBRA, x = "bat.sp", fill = "Order") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+  xlab(NULL) + geom_bar(stat="identity") + theme_bw() + theme(text = element_text(size = 20))       
 pB
 
 
@@ -564,6 +570,49 @@ prevelancedf[1:20,]
 
 
 ########################################################
+
+## Export this phyloseq object so you dont need to recreate it every time!
+
+# saveRDS(batsbugsy, file = file.path(output_today, "BatsBugs_Nasfixed.RDS")) 
+# output_today
+# testx <- readRDS("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18/BatsBugs_Nasfixed.RDS") # that works!! 
+
+```
+
+## Import species information data for the 10 orders of arthropods found in our data that for all the species in those orders documented in Swedens artdatabanken: 
+
+
+```{r}
+
+# There is one csv file for each Arthropod order, read them all in together
+
+input1 <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Inputs/Artfakta.se"
+
+artfakta <- list.files(path=input1, pattern=".csv", recursive = TRUE) # 10 files for for 10 orders -
+
+df <-  lapply(artfakta, function(i){
+  read.csv(i, sep = ";")}) 
+
+dfx <- df %>% bind_rows()
+
+#write.csv(dfx, file = file.path(output_today, "BugsCombinedSweden.csv"))
+output_today
+# [1] "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18"
+
+
+# araneae <- read.csv(artfakta[1], row.names = NULL, sep = ";")
+# coleoptera <- read.csv(artfakta[2], row.names = NULL, sep = ";")
+# diptera <- read.csv(artfakta[3], row.names = NULL, sep = ";")
+# hemiptera <- read.csv(artfakta[4], row.names = NULL, sep = ";")
+# hymenoptera <- read.csv(artfakta[5], row.names = NULL, sep = ";") 
+# # 1000 ish taxa were cut off - may need to look into this later
+# lepidoptera <- read.csv(artfakta[6], row.names = NULL, sep = ";")
+# neuoptera <- read.csv(artfakta[7], row.names = NULL, sep = ";")
+# orthoptera <- read.csv(artfakta[8], row.names = NULL, sep = ";")
+# psocodea <- read.csv(artfakta[9], row.names = NULL, sep = ";")
+# trichoptera <- read.csv(artfakta[10], row.names = NULL, sep = ";")
+
+
 
 ```
 
