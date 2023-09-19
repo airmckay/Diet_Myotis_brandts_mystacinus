@@ -539,8 +539,10 @@ prevelancedf = apply(X = otu_table(batsbugsy),
 prevelancedf = data.frame(Prevalence = prevelancedf,
                       TotalAbundance = taxa_sums(batsbugsy),
                       tax_table(batsbugsy))
-prevelancedf[1:20,]
-
+prevalentpreyall <- prevelancedf
+#write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyall.csv"))
+# output_today
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-19"
 
 ######################################################
 
@@ -553,7 +555,8 @@ prevelancedf = apply(X = otu_table(MBRA),
 prevelancedf = data.frame(Prevalence = prevelancedf,
                       TotalAbundance = taxa_sums(MBRA),
                       tax_table(MBRA))
-prevelancedf[1:20,]
+prevalentpreyMBRA <- prevelancedf
+#write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyMBRA.csv"))
 
 ######################################################
 
@@ -566,8 +569,9 @@ prevelancedf = apply(X = otu_table(MMYS),
 prevelancedf = data.frame(Prevalence = prevelancedf,
                       TotalAbundance = taxa_sums(MMYS),
                       tax_table(MMYS))
-prevelancedf[1:20,]
-
+prevelancedf[1:20,] # See top 20 
+prevalentpreyMMYS <- prevelancedf
+#write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyMMYS.csv"))
 
 ########################################################
 
@@ -579,24 +583,28 @@ prevelancedf[1:20,]
 
 ```
 
-## Import species information data for the 10 orders of arthropods found in our data that for all the species in those orders documented in Swedens artdatabanken: 
-
+## How do the top prey items for MBRA and MMYS relate to their habitat selection? 
+- Get arthropod species habitat use data from Artdatabanken.se
+- Merge with top prey items for MBRA and MMYS
+- Create a habitat column based on the arthropods 
+- Plot the differences in terms of prey abundance and prevalence 
 
 ```{r}
 
 # There is one csv file for each Arthropod order, read them all in together
-
-input1 <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Inputs/Artfakta.se"
-
-artfakta <- list.files(path=input1, pattern=".csv", recursive = TRUE) # 10 files for for 10 orders -
-
-df <-  lapply(artfakta, function(i){
-  read.csv(i, sep = ";")}) 
-
-dfx <- df %>% bind_rows()
+# 
+# input1 <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Inputs/Artfakta.se"
+# 
+# 
+# artfakta <- list.files(path=input1, pattern=".csv", recursive = TRUE) # 10 files for for 10 orders -
+# 
+# df <-  lapply(artfakta, function(i){
+#   read.csv(i, sep = ";")}) 
+# 
+# dfx <- df %>% bind_rows()
 
 #write.csv(dfx, file = file.path(output_today, "BugsCombinedSweden.csv"))
-output_today
+# output_today
 # [1] "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18"
 
 
@@ -612,6 +620,218 @@ output_today
 # psocodea <- read.csv(artfakta[9], row.names = NULL, sep = ";")
 # trichoptera <- read.csv(artfakta[10], row.names = NULL, sep = ";")
 
+
+# swbugs <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18/BugsCombinedSweden.csv")
+
+## Which of these have a habitat description? 
+
+swbugs1 <- swbugs %>% 
+  dplyr::select(Vetenskapligt.namn, Landskapstyp, RedListCategory) %>% 
+  dplyr::rename(name = Vetenskapligt.namn, habitat = Landskapstyp, status = RedListCategory) %>% 
+  dplyr::mutate(across(c(name, habitat, status), factor)) 
+
+swbugsh <- swbugs1 %>% filter(habitat != "") #  15219 obs that have some habitat data 
+
+summary(swbugsh) # 15219 obs 
+
+
+swbugsh$habitatx1 <- gsub(",", "-", swbugsh$habitat)
+
+incols <- c("habitat1", "dist1", "habitat2", "dist2", "habitat3", "dist3", "habitat4", "dist4")
+
+swbugsh2 <- swbugsh %>% 
+  tidyr::separate(col = habitatx1,                                         
+                                        sep = "-",
+                                        into = incols, 
+                                        remove = FALSE) %>% 
+  dplyr::rename(Species = name) %>% 
+  mutate(Species = as.character(Species)) 
+
+swbugsh3 <- swbugsh2 %>% distinct(Species, .keep_all = TRUE) # 11998 obs instead of 15219
+
+## Now find what matches with the batsbugs data.
+
+taxa <- as.matrix(batsbugsy@tax_table)
+taxa <- as.data.frame(taxa)
+taxasimple <- taxa %>% dplyr::select(Species) %>% unique() # 162 obs - 162 distinct prey items 
+
+## How well do these two compare? - many gaps, lets look at the most prevalent prey items. 
+test <- left_join(taxasimple, swbugsh3, by = "Species") # 1887 obs 
+test1 <- test %>% distinct(Species, .keep_all = TRUE) 
+test2 <- unique(test1)
+
+# 40 most prevalent prey items for both bats combined 
+prey1 <- prevalentpreyall %>% distinct(Species, .keep_all = TRUE) 
+prey1$Species
+
+preyB <- prevalentpreyMBRA %>% distinct(Species, .keep_all = TRUE) 
+preyB$Species
+
+preyM <- prevalentpreyMMYS %>% distinct(Species, .keep_all = TRUE) 
+preyM$Species
+
+
+preyBh <- left_join(preyB, swbugsh3, by = "Species") %>% distinct(Species, .keep_all = TRUE) # 
+preyBh$BatSpecies <- "M. brandtii" # select the top 30 prey items for MBRA
+preyBh1 <- preyBh %>% filter(TotalAbundance > 102)
+
+preyMh <- left_join(preyM, swbugsh3, by = "Species") %>% distinct(Species, .keep_all = TRUE) # 
+preyMh$BatSpecies <- "M. mystacinus" 
+preyMh1 <- preyMh %>% filter(TotalAbundance > 189)
+
+prey <- full_join(preyMh1, preyBh1)
+prey <- prey %>% 
+  dplyr::select(-c(habitat1, habitat2, habitat3, habitat4, dist1, dist2, dist3, dist4, habitatx1)) %>% 
+  mutate(habitat = as.character(habitat)) %>% 
+  mutate(habitat = replace_na(habitat, "Unknown"))
+
+head(prey) # 324 obs 
+
+## Remove taxa for which both abundance and prevalence are zero 
+
+prey_fix <- subset(prey, prey$Prevalence != 0 & prey$TotalAbundance != 0) # 60 obs   
+
+
+# most prey items have a total abundance greater than 500. What does it look like when I filter under that?
+
+
+## Need to fill in the gaps for prey items where there is no habitat data: 
+
+prey0 <- prey_fix %>% filter(habitat == "Unknown") # 3 obs out of 170 are unknown:( 
+unknownhabitatprey <- prey0$Species # 31 prey items 
+#write.csv(unknownhabitatprey, file = file.path(output_today, "unknownpreytoassign.csv"))
+
+preyx <- prey0 %>% 
+  dplyr::mutate(habitat1 = case_when(
+    Species %in% c("Actia pilipennis", "Anthomyiidae Family", 
+                   "Araneae Order",  "Campoplex tibialis",
+                   "Cecidomyiidae Family", "Hilara Genus",
+                   "Hymenoptera Order", "Ichneumonidae Family",
+                   "Leia subfasciata", "Lepidoptera Order", "Gryllus bimaculatus",
+                   "Tachinidae Family", "Thricops semicinereus") ~ "Unknown",
+    Species %in% c("Chironomidae Family", "Tricyphona alticola", "Ula mixta", "Ula spp.") ~ "(S) (V) (L) (J)",
+    Species %in% c("Simulium Genus", "Tipula Genus") ~ "(S) (V) (L)",
+    Species %in% c("Nemapogon cloacella", "Hemerobius pini", 
+                    "Hemerobius perelegans", "Hemerobius fenestratus",
+                   "Neolygus contaminatus", "Neuratelia Genus", 
+                   "Pseudatemelia josephinae", "Suillia bicolor") ~ "(S)")) 
+
+
+preyy <- full_join(prey, preyx)
+preyy <- preyy %>% mutate(habitat1 = replace_na(habitat1, "Switch"))
+preyz <- preyy %>% mutate(habitat2 = case_when(
+                  habitat1 == "Switch" ~ as.character(habitat), 
+                  TRUE ~ as.character(habitat1)))  # Now habitat2 is the column with all the habitat data updated... 
+
+
+# write.csv(preyz, file = file.path(output_today, "toppreyallbatswithhabitat.csv"))
+# output_today
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-19"
+
+prey1 <- preyz  %>% 
+  mutate(Agriculture = case_when(
+  str_detect(habitat2, pattern = "(J)") ~ 1,
+  TRUE ~ 0)) %>% 
+  mutate(Forest = case_when(
+  str_detect(habitat2, pattern = "(S)") ~ 2,
+  TRUE ~ 0)) %>% 
+  mutate(Fresh_water = case_when(
+  str_detect(habitat2, pattern = "(L)") ~ 3,
+  TRUE ~ 0)) %>% 
+  mutate(Wetland = case_when(
+  str_detect(habitat2, pattern = "(V)") ~ 4,
+  TRUE ~ 0)) %>% 
+  mutate(Unknown = case_when(
+  str_detect(habitat2, pattern = "Unknown") ~ 5,
+  TRUE ~ 0)) 
+
+#write.csv(prey1, file = file.path(output_today, "toppreyallbatswithhabitat_tabled.csv"))
+
+ggplot() + 
+  geom_count(data = prey1, aes(x = BatSpecies, y = Species, size = TotalAbundance), alpha = 0.5) + 
+  theme_bw() + xlab("") + ylab("") + theme(text = element_text(size = 20))  
+
+ggplot() + 
+  geom_count(data = prey1, aes(x = BatSpecies, y = Species, size = Prevalence), alpha = 0.5) + 
+  theme_bw() + xlab("") + ylab("") + theme(text = element_text(size = 20))  
+
+library(ggdark)
+# Prevalence of prey items related back to habitat type 
+p <- ggplot() + 
+  geom_count(data = prey1, aes(x = Agriculture, y = Species, size = Prevalence), alpha = 0.7, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Species, size = Prevalence), alpha = 0.7, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Species, size = Prevalence), alpha = 0.7, color = "#B0BF1A") +
+  geom_count(data = prey1, aes(x = Wetland, y = Species, size = Prevalence), alpha = 0.7, color = "#3232a2") + 
+  geom_count(data = prey1, aes(x = Unknown, y = Species, size = Prevalence), alpha = 0.7, color = "black") + 
+  facet_wrap(~BatSpecies) + theme_bw() + 
+  xlab("") + ylab("") + 
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(text = element_text(size = 20)) + xlim(c(1,5)) +
+  theme(legend.position = "none") 
+  
+p 
+
+# Abundance of prey items related back to habitat type 
+p <- ggplot() + 
+  geom_count(data = prey1, aes(x = Agriculture, y = Species, size = TotalAbundance), alpha = 0.8, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Species, size = TotalAbundance), alpha = 0.8, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Species, size = TotalAbundance), alpha = 0.8, color = "#B0BF1A") +
+  geom_count(data = prey1, aes(x = Wetland, y = Species, size = TotalAbundance), alpha = 0.8, color = "#3232a2") + 
+  geom_count(data = prey1, aes(x = Unknown, y = Species, size = TotalAbundance), alpha = 0.8, color = "black") +
+  facet_wrap(~BatSpecies) + 
+  theme_bw() +  xlab("") + ylab("") + 
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(text = element_text(size = 20)) + xlim(c(1,5)) +
+  theme(legend.position = "none") 
+  
+p 
+
+## What about on the prey family level? 
+
+# Prevalence of prey items related back to habitat type 
+p <- ggplot() + 
+  geom_count(data = prey1, aes(x = Agriculture, y = Family, size = TotalAbundance), alpha = 0.5, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Family, size = TotalAbundance), alpha = 0.5, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Family, size = TotalAbundance), alpha = 0.5, color = "#B0BF1A") +
+  geom_count(data = prey1, aes(x = Wetland, y = Family, size = TotalAbundance), alpha = 0.5, color = "#3232a2") + 
+  geom_count(data = prey1, aes(x = Unknown, y = Family, size = TotalAbundance), alpha = 0.5, color = "black") +
+  facet_wrap(~BatSpecies) + 
+  theme_bw() + xlab("") + ylab("") + 
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(text = element_text(size = 20)) + xlim(c(1,6)) +
+  theme(legend.position = "none") 
+  
+p 
+
+# Order? 
+
+p <- ggplot() + 
+  geom_count(data = prey1, aes(x = Agriculture, y = Order, size = TotalAbundance), alpha = 0.5, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Order, size = TotalAbundance), alpha = 0.5, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Order, size = TotalAbundance), alpha = 0.5, color = "#B0BF1A") +
+  geom_count(data = prey1, aes(x = Wetland, y = Order, size = TotalAbundance), alpha = 0.5, color = "#3232a2") + 
+  geom_count(data = prey1, aes(x = Unknown, y = Order, size = TotalAbundance), alpha = 0.5, color = "black") +
+  facet_wrap(~BatSpecies) + 
+  theme_bw() + xlab("") + ylab("") + 
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(text = element_text(size = 20)) + xlim(c(1,5)) +
+  theme(legend.position = "none") 
+  
+p # Not terribly interesting 
+
+p <- ggplot() + 
+  geom_count(data = prey1, aes(x = Mountain, y = Order), alpha = 0.7, color = "#1f9990") + 
+  geom_count(data = prey1, aes(x = Agriculture, y = Order), alpha = 0.7, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Order), alpha = 0.7, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Order), alpha = 0.7, color = "#013220") +
+  geom_count(data = prey1, aes(x = Wetland, y = Order), alpha = 0.7, color = "#3eb489") + 
+  facet_wrap(~BatSpecies) + 
+  theme_bw() + xlab("") + ylab("") + 
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(text = element_text(size = 20)) + xlim(c(1,5)) +
+  theme(legend.position = "none") 
+  
+p # Not terribly interesting 
 
 
 ```
