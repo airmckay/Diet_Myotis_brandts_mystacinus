@@ -412,7 +412,7 @@ new_physeq1 <- new_physeq %>%
   Order  == "Diptera" ~ "Ula spp.",
   .default = as.character(Species)))
 
-new_physeq1
+new_physeq1 # These are the unknowns 
 # phyloseq-class experiment-level object
 # otu_table()   OTU Table:          [ 411 taxa and 47 samples ]:
 # sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
@@ -429,6 +429,7 @@ pB1 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Genus") +
   xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
 pB1
 
+# Large proportion of the unknowns were Ula spp. 
 pB2 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Species") + 
   xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
 pB2
@@ -529,8 +530,8 @@ tax_glom(MMYS, "Genus") # 117 different Genera for MMYS
 
 ######################################################
 
-# Prevalence of the top 10 most abundant ASVs for both bat species from raw data 
-### Now there are some NAs in the top prey items - we may able to figure out what these are later by blasting the data through NCBI
+# Prevalence of the most abundant ASVs for both bat species from raw data 
+### 
 
 prevelancedf = apply(X = otu_table(batsbugsy),
                  MARGIN = 1,
@@ -544,36 +545,71 @@ prevalentpreyall <- prevelancedf
 # output_today
 # "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-19"
 
-######################################################
 
-# Prevalence of the top 10 most abundant OTUs for MBRA from raw data
+#Make it possible to combine below with relative read abundance. 
 
-prevelancedf = apply(X = otu_table(MBRA),
-                 MARGIN = 1,
-                 FUN = function(x){sum(x > 0)})
-# Add taxonomy and total read counts to this data.frame
-prevelancedf = data.frame(Prevalence = prevelancedf,
-                      TotalAbundance = taxa_sums(MBRA),
-                      tax_table(MBRA))
-prevalentpreyMBRA <- prevelancedf
-#write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyMBRA.csv"))
+prevall <- prevalentpreyall %>% rownames_to_column(var = "OTU") %>% 
+  dplyr::select(OTU, Prevalence, TotalAbundance)
+
+str(prevall)
+# 'data.frame':	1887 obs. of  3 variables:
+#  $ OTU           : chr  "aedf8e775e4c0c959f9ad1e7460a6b13" "03757d800296133f842997ef7ee29f47" "c36206e2de9ff84834f976b81c27a456" "570987e04aab202503861ef80daf753d" ...
+#  $ Prevalence    : int  3 3 3 4 3 2 3 2 8 1 ...
+#  $ TotalAbundance: num  992 602 996 970 644 550 426 613 664 206 ...
 
 ######################################################
 
-# Prevalence of the top 10 most abundant OTUs for MMYS from raw data
+# Prevalence of the most abundant ASVs for MBRA from raw data
 
-prevelancedf = apply(X = otu_table(MMYS),
-                 MARGIN = 1,
-                 FUN = function(x){sum(x > 0)})
-# Add taxonomy and total read counts to this data.frame
-prevelancedf = data.frame(Prevalence = prevelancedf,
-                      TotalAbundance = taxa_sums(MMYS),
-                      tax_table(MMYS))
-prevelancedf[1:20,] # See top 20 
-prevalentpreyMMYS <- prevelancedf
+# prevelancedf = apply(X = otu_table(MBRA),
+#                  MARGIN = 1,
+#                  FUN = function(x){sum(x > 0)})
+# # Add taxonomy and total read counts to this data.frame
+# prevelancedf = data.frame(Prevalence = prevelancedf,
+#                       TotalAbundance = taxa_sums(MBRA),
+#                       tax_table(MBRA))
+# prevalentpreyMBRA <- prevelancedf
+# #write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyMBRA.csv"))
+# 
+# ######################################################
+# 
+# # Prevalence of the  most abundant ASVs for MMYS from raw data
+# 
+# prevelancedf = apply(X = otu_table(MMYS),
+#                  MARGIN = 1,
+#                  FUN = function(x){sum(x > 0)})
+# # Add taxonomy and total read counts to this data.frame
+# prevelancedf = data.frame(Prevalence = prevelancedf,
+#                       TotalAbundance = taxa_sums(MMYS),
+#                       tax_table(MMYS))
+# prevelancedf[1:20,] # See first 20 rows (not necessarily ordered in terms of abundance!!)
+# prevalentpreyMMYS <- prevelancedf
 #write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyMMYS.csv"))
 
 ########################################################
+
+### Calculate relative read abundance
+### Not entirely sure how to fit this in just yet. 
+
+## Per sample per prey species 
+# rra_BM <- batsbugsy %>% tax_glom(taxrank = "Species") %>% 
+#         transform_sample_counts(function(x) {x/sum(x)}) %>%
+#         psmelt() %>% dplyr::select(OTU, Species, Sample, Abundance) %>% 
+#         spread(Sample, Abundance) 
+# 
+# head(rra_BM)
+
+
+batsbugysrra  = transform_sample_counts(batsbugsy, function(x) x / sum(x) )
+batsbugysrradf <- psmelt(batsbugysrra) # abundance is now relative abundance 
+batsbugsz <- as.data.frame(full_join(batsbugysrradf, prevall, by = "OTU"))
+
+head(batsbugsz)
+
+
+
+
+
 
 ## Export this phyloseq object so you dont need to recreate it every time!
 
@@ -621,7 +657,7 @@ prevalentpreyMMYS <- prevelancedf
 # trichoptera <- read.csv(artfakta[10], row.names = NULL, sep = ";")
 
 
-# swbugs <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18/BugsCombinedSweden.csv")
+swbugs <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18/BugsCombinedSweden.csv")
 
 ## Which of these have a habitat description? 
 
@@ -662,29 +698,72 @@ test2 <- unique(test1)
 
 # 40 most prevalent prey items for both bats combined 
 prey1 <- prevalentpreyall %>% distinct(Species, .keep_all = TRUE) 
-prey1$Species
+prey1$Species # Not actually that useful for comparing between the two species... 
 
+## Better to split it up and then re-merge
 preyB <- prevalentpreyMBRA %>% distinct(Species, .keep_all = TRUE) 
+preyB$BatSpecies <- "M. brandtii" # select the top 30 prey items for MBRA
 preyB$Species
+# 162 distinct prey items - but not the same ones as MMYS! - but there are many with zero abundance and prevalence... 
 
 preyM <- prevalentpreyMMYS %>% distinct(Species, .keep_all = TRUE) 
+preyM$BatSpecies <- "M. mystacinus"
 preyM$Species
+# 162 distinct prey items - but not the same as MBRA! - but there are many with zero abundance and prevalence... 
+
+# How many actual prey items for each bat species? 
+preycheckB <- subset(preyB, preyB$Prevalence != 0 & preyB$TotalAbundance != 0) 
+#67 prey items
+
+preycheckM <- subset(preyM, preyM$Prevalence != 0 & preyM$TotalAbundance != 0) 
+# 103 prey items 
+
+## For just comparing all prey items of the two bats, this object should be saved and stored 
+
+preycheckBM <- full_join(preycheckB, preycheckM) %>% arrange(Order)
 
 
+## Make a bipatriate chart 
+
+bipart <- ggplot(preycheckBM, aes(x = BatSpecies, y = Family, fill = Prevalence)) +
+  geom_tile() +
+  scale_fill_gradient(low = "gray", high = "black") + 
+  labs(title = "Bipartite predator - prey relationship",
+       x = "Bat species",
+       y = "Prey Family") + theme_minimal() + theme(text = element_text(size = 20))
+bipart
+
+bipart <- ggplot(preycheckBM, aes(x = BatSpecies, y = Order, fill = TotalAbundance)) +
+  geom_tile() +
+  scale_fill_gradient(low = "gray", high = "black") + 
+  labs(title = "Predator - prey relationship based on sequence read abundance",
+       x = "Bat species",
+       y = "Arthropod orders") +  
+  theme(text = element_text(size = 20)) +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black")) +
+  theme(legend.position = "none")
+bipart
+
+
+## Use the total abundance to select the top prey items for MBRA and MMYS (prevalence and abundance highly correlated)
 preyBh <- left_join(preyB, swbugsh3, by = "Species") %>% distinct(Species, .keep_all = TRUE) # 
-preyBh$BatSpecies <- "M. brandtii" # select the top 30 prey items for MBRA
 preyBh1 <- preyBh %>% filter(TotalAbundance > 102)
 
 preyMh <- left_join(preyM, swbugsh3, by = "Species") %>% distinct(Species, .keep_all = TRUE) # 
-preyMh$BatSpecies <- "M. mystacinus" 
+ # select the top 30 prey items for MBRA 
 preyMh1 <- preyMh %>% filter(TotalAbundance > 189)
 
 prey <- full_join(preyMh1, preyBh1)
+
 prey <- prey %>% 
   dplyr::select(-c(habitat1, habitat2, habitat3, habitat4, dist1, dist2, dist3, dist4, habitatx1)) %>% 
   mutate(habitat = as.character(habitat)) %>% 
   mutate(habitat = replace_na(habitat, "Unknown"))
 
+dim(prey)
 head(prey) # 324 obs 
 
 ## Remove taxa for which both abundance and prevalence are zero 
