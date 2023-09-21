@@ -682,8 +682,8 @@ ggplot() +
   theme_bw() + xlab("") + ylab("") + theme(text = element_text(size = 20))  
 
 ggplot() + 
-  geom_count(data = prey1, aes(x = bat.sp, y = Family)) + 
-  theme_bw() + xlab("") + ylab("") + theme(text = element_text(size = 20))  
+  geom_count(data = prey1, aes(x = bat.sp, y = Family, size = TotalAbundance, color = Order), alpha = 0.7) + 
+  theme_bw() + xlab("") + ylab("") + theme(text = element_text(size = 20))   
 
 
 # Prevalence of prey items related back to habitat type - Family 
