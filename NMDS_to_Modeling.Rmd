@@ -1381,7 +1381,8 @@ batsbugsy %>%
   comp_barplot(tax_level = "Order") +
   scale_fill_manual(labels = c("Diptera", "Lepidoptera", "Neuroptera",
                                "Hymenoptera", "Trichoptera", "Orthoptera",
-                               "Araneae", "Hemioptera", "Psocodea"), values = c(    
+                               "Araneae", "Hemioptera", "Psocodea"), 
+                    values = c(    
     "#D8443C", "#9F5691", "#633372", 
     "#E87E8B", "#92C051", "#1F6E9C",
     "#F4C40F", "#DE597C", "#2B9B81", "#FE9B00")) +
@@ -1409,8 +1410,9 @@ batsbugsy %>%
   tax_transform("identity", rank = "Family") %>%
   dist_calc(dist = "aitchison") %>%
   ord_calc("PCoA") %>%
-  ord_plot(color = "bat.sp", shape = "year", size = 2) +
-  scale_colour_brewer(palette = "Dark2", aesthetics = c("fill", "colour"), name = "Bat species") +
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.5) +
+  scale_colour_brewer(palette = "Set1", aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
   theme_bw() +
   ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
   ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
