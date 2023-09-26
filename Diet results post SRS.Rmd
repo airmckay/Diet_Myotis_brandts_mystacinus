@@ -1,27 +1,12 @@
-
 ---
-title: "Nittedal Diet Analyses"
-author: "Reed McKay"
-date: "4 9 2021"
-output:
-  pdf_document: default
-  html_document: default
+title: "Diet_Results_postSRS"
+output: html_document
+date: "2023-09-26"
 ---
 
-
-### Previous versions of the script: 
-
-title: "IBBM Diet Analyses"
-author: "Reed McKay"
-date: "4 5 2021"
-output: html_document
-
-
-title: "Filter/Normal_NMDS_lmer_batsandbugs"
-author: "Reed April McKay"
-date: "16 2 2021"
-output: html_document
-
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Important: 
 ** The data is already normalized via SRS (scaling with ranked subsampling)
@@ -31,6 +16,8 @@ output: html_document
 ### Prepare work space and load packages
 
 ```{r setup, include=FALSE}
+
+##############################################################
 library(rlang)
 library(cowplot)
 library(tidyverse) #
@@ -90,8 +77,10 @@ library(sorvi)
 #install_github("antagomir/netresponse")
 library(netresponse)
 
+##############################################################
+
 getwd()
-# C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Mbra-vs-Mmys-diet-"
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus"
 
 output <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs"
 
@@ -110,9 +99,16 @@ output_today
 
 ```
 
-### Import data, create phyloseq object, convert OTU table to presence/absence (optional)
 
-```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+
+
+## Import and filter the dataset 
+
+- Remove taxa unknow at the Order level and above (none removed)
+- Remove OTUs with 10 or less sequence reads (729 OTUs removed) * 
+- Remove samples with 600 or less sequence reads (none removed)
+
+```{r}
 
 phylo <- qza_to_phyloseq(
   features= "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/FromFranz_07.2023/R-scrips/sPLS-DA/bat-feat-tab-clean.qza",  
@@ -131,7 +127,7 @@ phylo #shows what our physeq object contains
 
 sort(colSums(otu_table(phylo))) # 4000 reads per sample 
 
-#we remove all features that are unassigned on phylum level
+#we remove all features that are unassigned on the phylum level (none lost)
 phylos <- subset_taxa(phylo, Phylum != "NA")
 
 phylos   #shows what our physeq object contains
@@ -141,31 +137,8 @@ phylos   #shows what our physeq object contains
 # tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]
 #now we extract the data we need in the exact format that we need
 
-#we remove all features that are unassigned on genus level
-phyloseq <- subset_taxa(phylo, Genus != "NA")
 
-phyloseq   #shows what our physeq object contains
-# phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 2536 taxa and 64 samples ]
-# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 2536 taxa by 7 taxonomic ranks ]
-
-# 1093 taxa lost 
-
-
-#we remove all features that are unassigned on family level
-phyloseq1 <- subset_taxa(phylo, Family != "NA")
-
-phyloseq1   #shows what our physeq object contains
-# phyloseq1   #shows what our physeq object contains
-# phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 2665 taxa and 64 samples ]
-# sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
-# tax_table()   Taxonomy Table:    [ 2665 taxa by 7 taxonomic ranks ]
-#3629 - 2665 =  964
-
-
-#we remove all features that are unassigned on genus level
+#we remove all features that are unassigned on Order level (none lost)
 phyloseq2 <- subset_taxa(phylo, Order != "NA")
 
 phyloseq2   #shows what our physeq object contains
@@ -174,11 +147,8 @@ phyloseq2   #shows what our physeq object contains
 # sample_data() Sample Data:       [ 64 samples by 9 sample variables ]
 # tax_table()   Taxonomy Table:    [ 3629 taxa by 7 taxonomic ranks ]*
 
-### Franz has suggested NOT filtering out taxa with NA values at this stage.
 
-
-batsbugs <- phylo %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS"))
-batsbugs  
+batsbugs <- phylo %>%  ps_filter(bat.sp %in% c("MBRA", "MMYS")) 
 # phyloseq-class experiment-level object
 # otu_table()   OTU Table:         [ 2616 taxa and 47 samples ]
 # sample_data() Sample Data:       [ 47 samples by 9 sample variables ]
@@ -194,30 +164,26 @@ sort(colSums(otu_table(batsbugs)))
 quantile(colSums(otu_table(batsbugs)))
 #   0%  25%  50%  75% 100% 
 # 4000 4000 4000 4000 4000 
-```
 
-
-### Filter out OTUs with a low number of sequence reads and samples with few OTUs 
-```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
-
-#Filter1 = batbugs1 
 
 #Remove OTUs with less than 10 sequence reads 
 batsbugs1 <- prune_taxa(taxa_sums(batsbugs) >= 10, batsbugs) 
 batsbugs
 batsbugs1
-# 2616 - 1887 # 729 taxa lost 
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:          [ 1887 taxa and 47 samples ]:
+# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# tax_table()   Taxonomy Table:     [ 1887 taxa by 7 taxonomic ranks ]:
+# taxa are rows
 
 ntaxa(batsbugs1)
+# 2616 - 1887 # 729 taxa lost 
+
 quantile(colSums(otu_table(batsbugs1)))
 #     0%    25%    50%    75%   100% 
 # 3857.0 3934.0 3950.0 3960.5 4000.0 
 
 sort(colSums(otu_table(batsbugs1)))
-
-# Remove samples with unusually small amounts of reads  (less tan 600)
-# Removed four samples:     13B   3B  49B   5B  11B
-# (recommendation from Lisa Lunde)
 
 batsbugs2<-prune_samples(colSums(otu_table(batsbugs1))>=600,batsbugs1) 
 batsbugs2 # none lost 
@@ -232,19 +198,24 @@ quantile(colSums(otu_table(batsbugs2)))
 #     0%    25%    50%    75%   100% 
 # 3857.0 3934.0 3950.0 3960.5 4000.0 
 
-
+## Visualize to check: 
 # Compare abundance across of different order of OTUs betwween bat species  
 # 
 # p1 <- plot_bar(batsbugs2, x = "bat.sp", fill = "Order") +
-#                 geom_bar(stat="identity") + theme_bw() + ggtitle("Samples > 600 reads")
-# p1 # batsbugs 2 and removed samples with less than 600 reads 
+#                 geom_bar(stat="identity") + 
+#   theme_bw() + ggtitle("OTU > 10 reads, Samples > 600 reads")
+# p1 # 
+
 
 ```
 
-Relative abundance representation
-Top families 
-Top Orders 
+## Visualize abundance and relative abundance of different prey items 
 
+### Relative abundance representation
+- Family 
+- Order 
+
+Reference for the code: 
 https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/composition-plots.html
 
 ```{r}
@@ -311,13 +282,12 @@ plot.composition.relAbun <- plot_composition(bb.order.rel, sample.sort = "bat.sp
 print(plot.composition.relAbun)
 
 
-
 ```
 
 
-## Finding the unknown prey items associated with NA features. 
-```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+## Determine what the NA prey items are 
 
+```{r}
 
 ############# Find the NAs 
 
@@ -326,11 +296,16 @@ bbdf = psmelt(batsbugs2)
 dim(bbdf)
 #88689    19
 
-
 summary(bbdf)
 names(bbdf)
-#new_DF <- DF[is.na(DF$Var),]
-bbdf1<- bbdf[is.na(bbdf$Family),]
+#  [1] "OTU"            "Sample"         "Abundance"      "sample.nr"      "batch"         
+#  [6] "bat.sp"         "sex"            "year"           "date"           "date.text"     
+# [11] "nanodrop.ngul." "extradctio.run" "Kingdom"        "Phylum"         "Class"         
+# [16] "Order"          "Family"         "Genus"          "Species" 
+
+
+
+bbdf1<- bbdf[is.na(bbdf$Family),] # Create a dataset of only prey items with unknown famillies 
 summary(bbdf1)
 # 19317 obs of NA on at least the family level. 
 
@@ -346,7 +321,6 @@ na_asv <- bbdf1 %>% distinct(OTU, .keep_all=T)
 
 ## Check which sequences are related to these features
 seqs <- read_qza("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Analysis archive/bat_repr-seq.qza")
-
 seqs1 <- seqs$data # extract the data with the DNA sequences 
 na_asv$uuid <- na_asv$OTU
 
@@ -387,14 +361,35 @@ batsbugsx <- batsbugs2%>%
  tax_fix(min_length = 0,
   unknowns = c("NA"),
   sep = " ", anon_unique = TRUE,
-  suffix_rank = "classified")
+  suffix_rank = "classified") # Now any unknown family is labeled by its Order 
 
-# Subset to only include the unknown feature IDs , then change unknown Diptera to Ula spp.
+# Subset to only include the unknown feature IDs, then change unknown Diptera to Ula spp.
 my_subset <- subset(otu_table(batsbugsx), rownames(otu_table(batsbugsx)) %in% unknowns)
 
 new_physeq <- merge_phyloseq(my_subset, tax_table(batsbugsx), sample_data(batsbugsx))
+new_physeq
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:          [ 411 taxa and 47 samples ]:
+# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# tax_table()   Taxonomy Table:     [ 411 taxa by 7 taxonomic ranks ]:
+# taxa are rows
 
-plot_taxa_prevalence(new_physeq, "Family")
+# How many of these are Diptera? 
+dip_new <- subset_taxa(new_physeq, Order == "Diptera")
+dip_new 
+# phyloseq-class experiment-level object
+# otu_table()   OTU Table:          [ 380 taxa and 47 samples ]:
+# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# tax_table()   Taxonomy Table:     [ 380 taxa by 7 taxonomic ranks ]:
+# taxa are rows
+
+## 380 taxa will be assigned to Ula spp. 
+
+unk.prey <- ps_melt(new_physeq) %>% mutate(Order = factor(Order)) %>% distinct()
+summary(unk.prey$Order) 
+    # Araneae     Diptera Hymenoptera Lepidoptera  Neuroptera 
+    #     376       17860         141         893          47 
+# I will be able to assigned 17860 reads of these OTUs to Ula species but will leave the rest as unknown orders. 
 
 new_physeq1 <- new_physeq %>% 
   mutate_tax_table(
@@ -475,26 +470,36 @@ plot_bar(batsbugsy, x = "bat.sp", fill = "Order") +
   scale_colour_brewer(palette="Set1") + 
   theme(text = element_text(size = 20))  
 
+batsbugsy <- batsbugsy%>%
+ tax_fix(min_length = 0,
+  unknowns = c("NA"),
+  sep = " ", anon_unique = TRUE,
+  suffix_rank = "classified") # Now any unknown family is labeled by its Order 
+checkthis <- ps_melt(batsbugsy) # That worked 
+
 ## Export this phyloseq object so you dont need to recreate it every time!
 
 # saveRDS(batsbugsy, file = file.path(output_today, "BatsBugs_Nasfixed.RDS")) 
 # output_today
-# testx <- readRDS("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18/BatsBugs_Nasfixed.RDS") # that works!! 
-
+#testx <- readRDS("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-26/BatsBugs_Nasfixed.RDS") # that works!! 
 
 
 ```
 
+
 ###  Calculate prevalence (FOO?) and relative abundance (RRA) 
 
 ### Franz: 
-
 I am a little unsure if I am calculating these correctly; would be great if you could double check this section. 
 
 ```{r,  unaggregated_summaries, results = "asis", echo = FALSE}
+
 ######################################################
 ### All samples combined ### 
 ######################################################
+# test <- prune_taxa(taxa_sums(batsbugsy) > 0, batsbugsy)
+# test
+# testdf <- ps_melt(test) # still 88689 obs 
 
 # Prevalence of the most abundant ASVs for both bat species - Frequency occurence (FO)? 
 
@@ -506,14 +511,13 @@ prevelancedf = apply(X = otu_table(batsbugsy),
 prevelancedf = data.frame(Prevalence = prevelancedf,
                       TotalAbundance = taxa_sums(batsbugsy),
                       tax_table(batsbugsy))
-prevalentpreyall <- prevelancedf %>% arrange(desc(Prevalence))
-#write.csv(prevalentpreyall, file = file.path(output_today, "prevalentpreyall.csv"))
+#write.csv(prevelancedf, file = file.path(output_today, "prevelancedf.csv"))
 # output_today
-# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-19"
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-26"
 
 
 ## Do this separately for each bat species then recombine with the 
-prevall <- prevalentpreyall %>% rownames_to_column(var = "OTU") %>% 
+prevall <- prevelancedf %>% rownames_to_column(var = "OTU") %>%
   dplyr::select(OTU, Prevalence, TotalAbundance)
 
 str(prevall)
@@ -531,7 +535,7 @@ str(prevall)
 batsbugysrra  = transform_sample_counts(batsbugsy, function(x) x / sum(x) )
 batsbugysrradf <- psmelt(batsbugysrra) # Abundance is now relative abundance 
 batsbugsz <- as.data.frame(full_join(batsbugysrradf, prevall, by = "OTU"))
-
+## 88689 obs of 21 variables. 
 head(batsbugsz) #
 # write.csv(batsbugsz, file = file.path(output_today, "RelativeAbundancePrevalenecCalcAllPreyBothBats.csv"))
 # output_today
@@ -543,6 +547,9 @@ topall <- batsbugsz %>% arrange(desc(Prevalence)) %>%
   group_by(Species) %>% dplyr::summarize(TotalAbundance= sum(TotalAbundance)) %>% 
   mutate(Predator = "Pooled") %>% arrange(desc(TotalAbundance)) %>%  slice(1:10)
 kable(topall) %>% kable_minimal()
+
+
+
 
 ######################################################
 ### Myotis brandtii  ### 
@@ -604,10 +611,11 @@ topallB <- batsbugszB %>% arrange(desc(Prevalence)) %>%
   group_by(Species) %>% dplyr::summarize(TotalAbundance= sum(TotalAbundance)) %>% 
   mutate(Predator = "M. brandtii") %>% arrange(desc(TotalAbundance)) %>%  slice(1:10)
 
-TaxOrder <- batsbugszB %>% select(Species, Order) %>% distinct()
+TaxOrder <- batsbugszB %>% dplyr::select(Species, Order) %>% distinct()
 # 82 unique prey items 
 topallB <- left_join(topallB, TaxOrder)
 kable(topallB) %>% kable_minimal()
+
 
 ######################################################
 ### Myotis mystacinus  ### 
@@ -616,6 +624,7 @@ kable(topallB) %>% kable_minimal()
 MMYS <- subset_samples(batsbugsy, bat.sp == "MMYS")
 MMYS <- prune_taxa(taxa_sums(MMYS) > 0, MMYS) # Remove taxa not found in MMYS samples 
 MMYS
+
 # phyloseq-class experiment-level object
 # otu_table()   OTU Table:          [ 1262 taxa and 31 samples ]:
 # sample_data() Sample Data:        [ 31 samples by 9 sample variables ]:
@@ -658,7 +667,7 @@ topallM <- batsbugszM %>% arrange(desc(Prevalence)) %>%
   group_by(Species) %>% dplyr::summarize(TotalAbundance= sum(TotalAbundance)) %>% 
   mutate(Predator = "M. mystacinus") %>% arrange(desc(TotalAbundance)) %>%  slice(1:10)
 
-TaxOrder <- batsbugszM %>% select(Species, Order) %>% distinct()
+TaxOrder <- batsbugszM %>% dplyr::select(Species, Order) %>% distinct()
 # 124 unique prey items 
 topallM <- left_join(topallM, TaxOrder)
 kable(topallM) %>% kable_minimal()
@@ -669,7 +678,21 @@ kable(topallM) %>% kable_minimal()
 
 batsbugszBM <- full_join(batsbugszM, batsbugszB)
 summary(batsbugszBM) # 51506 rows 
+
+# write.csv(batsbugszBM, file = file.path(output_today, "bats_abundance_prevalence_Separate_then_combined.csv")) 
+# output_today
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-26/bats_abundance_prevalence_Separate_then_combined.csv"
 # 12384 + 39122 # good 
+mdf <- ps_melt(MMYS)
+bdf <- ps_melt(MBRA)
+# 39122 + 12384 (dims for MMYS and MBRA) = 551506 (This makes sense...)
+batsbugsyy <- prune_taxa()
+bbdf <- ps_melt(batsbugsy)
+# 
+
+MMYS
+MBRA
+batsbugsy
 
 # Visualize and compare - ORders 
 # pB <- plot_bar(MBRA, x = "bat.sp", fill = "Order") + 
@@ -689,235 +712,28 @@ summary(batsbugszBM) # 51506 rows
 
 ```
 
-## How do the top prey items for MBRA and MMYS relate to their habitat selection? 
-- Get arthropod species habitat use data from Artdatabanken.se
-- Create a habitat column based on the arthropods 
-- Plot the differences in terms of prey abundance and prevalence 
+
+
+## Plotting abundance, prevalence, relative abundance across prey orders 
+#!Problem! 
+When I compare the abundance and prevalence of prey items between bat species I get completely different results depending on rahter or not this was calcualted for each species separately or if it was calculated in the same dataset... Is that to be expected? Have I calculated prevalence and abundance correctly? 
 
 ```{r}
+prey1 <- batsbugszBM # 51506 obs - prevalence and abundance calculated separate for each bat species then recombined into one dataset 
+prey2 <- batsbugsz # 88689 obs - prevalence and abundance calculated in the complete dataset. 
 
-# There is one csv file for each Arthropod order, read them all in together
-# 
-# input1 <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Inputs/Artfakta.se"
-# 
-# 
-# artfakta <- list.files(path=input1, pattern=".csv", recursive = TRUE) # 10 files for for 10 orders -
-# 
-# df <-  lapply(artfakta, function(i){
-#   read.csv(i, sep = ";")}) 
-# 
-# dfx <- df %>% bind_rows()
-
-#write.csv(dfx, file = file.path(output_today, "BugsCombinedSweden.csv"))
-# output_today
-# [1] "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18"
-
-
-# araneae <- read.csv(artfakta[1], row.names = NULL, sep = ";")
-# coleoptera <- read.csv(artfakta[2], row.names = NULL, sep = ";")
-# diptera <- read.csv(artfakta[3], row.names = NULL, sep = ";")
-# hemiptera <- read.csv(artfakta[4], row.names = NULL, sep = ";")
-# hymenoptera <- read.csv(artfakta[5], row.names = NULL, sep = ";") 
-# # 1000 ish taxa were cut off - may need to look into this later
-# lepidoptera <- read.csv(artfakta[6], row.names = NULL, sep = ";")
-# neuoptera <- read.csv(artfakta[7], row.names = NULL, sep = ";")
-# orthoptera <- read.csv(artfakta[8], row.names = NULL, sep = ";")
-# psocodea <- read.csv(artfakta[9], row.names = NULL, sep = ";")
-# trichoptera <- read.csv(artfakta[10], row.names = NULL, sep = ";")
-
-
-swbugs <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-18/BugsCombinedSweden.csv")
-
-## Which of these have a habitat description? 
-
-swbugs1 <- swbugs %>% 
-  dplyr::select(Vetenskapligt.namn, Landskapstyp, RedListCategory) %>% 
-  dplyr::rename(Species = Vetenskapligt.namn, habitat = Landskapstyp, status = RedListCategory) %>% 
-  dplyr::mutate(across(c(Species, status), factor)) 
-
-# swbugsh <- swbugs1 %>% filter(habitat != "") 
-# summary(swbugsh) #  15219 obs that have some habitat data 
-
-
-## Combine with bat data 
-prey <- left_join(batsbugszBM, swbugs1, by = "Species", relationship = "many-to-many") ## 63731 obs (now more than batsbugsZBM..) 
-prey <- prey %>% mutate(habitat = replace_na(habitat, "Unknown"))
-
-## what kind of habitats are included?
-test <- prey %>% mutate(habitat = factor(habitat)) 
-levels(test$habitat)
-
-## check if there are any taxa for which both abundance and prevalence are zero 
-prey_fix <- subset(prey, prey$Prevalence != 0 & prey$TotalAbundance != 0) # 61407 as well - Nope, good!  
-
-
-prey0 <- prey_fix %>% filter(habitat == "Unknown") # 21548 obs for which habitat is unknown 
-
-## How much of this is Hymenoptera? 
-
-preyH <- prey0 %>% filter(Order == "Hymenoptera") %>% distinct(Species) ## 3 obs ... too generalize taxa to fix  
-
-## Check to see what taxa this includes 
-unknownhabitatprey <- prey0 %>% 
-  dplyr::select(Species, Prevalence, Abundance) %>% 
-  filter(Prevalence >= 2) %>% # Look for prey items with prevalence higher than 2 
-  mutate(Species = factor(Species)) 
-manualfix <- levels(unknownhabitatprey$Species) # 9 prey items that match this 
-manualfix
-# "Helina Genus"             "Pseudatemelia josephinae" "Tipula Genus"             "Tricyphona alticola"      "Ula spp."   
-
-# Export and manually fill in for these species 
-#write.csv(manualfix, file = file.path(output_today, "unknownpreytoassign.csv"))
-#output_today
-# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-20"
-
-## I manually searched for these prey items plus some others. 
-preyx <- prey %>% 
-  dplyr::mutate(habitat1 = case_when(
-    Species %in% c("Helina Genus", "Thricops semicinereus") ~ "(S) (L) (V) (J) (U) (H) (F)",
-    Species %in% c("Chironomidae Family", "Tricyphona alticola", "Ula mixta", "Ula spp.") ~ "(S) (V) (L) (J)",
-    Species %in% c("Tipula Genus", "Tipula iberica", "Tipulidae Family") ~ "(S) (V) (L) (J) (U)",
-    Species %in% c("Nemapogon cloacella", "Hemerobius pini", 
-                   "Hemerobius perelegans", "Hemerobius fenestratus",
-                   "Neolygus contaminatus", "Neuratelia Genus", 
-                   "Pseudatemelia josephinae") ~ "(S)", 
-    TRUE ~ as.character(habitat)))  
-
-
-prey1 <- preyx  %>% 
-  mutate(Agriculture = case_when(
-  str_detect(habitat1, pattern = "(J)") ~ 1, # Agriculture 
-  TRUE ~ 0)) %>% 
-  mutate(Forest = case_when(
-  str_detect(habitat1, pattern = "(S)") ~ 2, # Forest
-  TRUE ~ 0)) %>% 
-  mutate(Fresh_water = case_when(
-  str_detect(habitat1, pattern = "(L)") ~ 3, # Fresh water 
-  TRUE ~ 0)) %>% 
-  mutate(Wetland = case_when(
-  str_detect(habitat1, pattern = "(V)") ~ 4, # Wetland
-  TRUE ~ 0)) %>% 
-  mutate(Mountain = case_when(
-  str_detect(habitat1, pattern = "(F)") ~ 5, # Mountain 
-  TRUE ~ 0)) %>% 
-  mutate(Urban = case_when(
-  str_detect(habitat1, pattern = "(U)") ~ 6, # Urban  
-  TRUE ~ 0)) %>%
-  mutate(Coastal = case_when(
-  str_detect(habitat1, pattern = "(H)") ~ 7, # Coastal  
-  TRUE ~ 0)) %>% 
-  mutate(Unknown = case_when(
-  str_detect(habitat1, pattern = "Unknown") ~ 8,
-  TRUE ~ 0)) 
-
-# write.csv(prey1, file = file.path(output_today, "BatPreyDatawHabitat.csv")) 
-# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-21"
-
-  
-
-
-##################################################
-###### Comparing habitat of prey ######
-##################################################
-
-# Prevalence of prey items related back to habitat type - Family 
-
-  checkthis <- prey1 %>% dplyr::select(Family, Order) %>% distinct() %>% arrange(Order) 
-  listcheck <- as.character(checkthis$Family) %>% unique() # list of 53, good 
-  prey1$Family <- factor(prey1$Family, levels = listcheck) 
-  prey1$Order <- factor(prey1$Order) # Create a nice pallete with 10 distinct colors 
-
-p <- ggplot() + 
-  geom_count(data = prey1, aes(x = Agriculture, y = Family, size = Prevalence), alpha = 0.5, color = "#ff9700") +
-  geom_count(data = prey1, aes(x = Fresh_water, y = Family, size = Prevalence), alpha = 0.5, color = "#0080ff") +
-  geom_count(data = prey1, aes(x = Forest, y = Family, size = Prevalence), alpha = 0.5, color = "forestgreen") +
-  geom_count(data = prey1, aes(x = Wetland, y = Family, size = Prevalence), alpha = 0.5, color = "#3232a2") + 
-  geom_count(data = prey1, aes(x = Mountain, y = Family, size = Prevalence), alpha = 0.5, color = "brown") + 
-  geom_count(data = prey1, aes(x = Urban, y = Family, size = Prevalence), alpha = 0.5, color = "#8f6e98") + 
-  geom_count(data = prey1, aes(x = Coastal, y = Family, size = Prevalence), alpha = 0.5, color = "salmon") + 
-  geom_count(data = prey1, aes(x = Unknown, y = Family, size = Prevalence), alpha = 0.5, color = "black") + 
-  facet_wrap(~bat.sp) + 
-    theme(
-  panel.background = element_rect(fill = "white",
-                                colour = "white",
-                                size = 0.5, linetype = "solid"),
-  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
-                                colour = "#7F7F7F"), 
-  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
-                                colour = "#7F7F7F")) + 
-  xlab("") + ylab("") + 
-  scale_size_continuous(range = c(5, 12)) +
-  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
-  theme(text = element_text(size = 20)) + xlim(c(1,8)) +
-  theme(legend.position = "none") 
-  
-p # Not possible to see nuanced differences without with Prevalence, but it is more obvious with relative abundance. 
-
-# Prevalence of prey items related back to habitat type - Order 
-p <- ggplot() + 
-  geom_count(data = prey1, aes(x = Agriculture, y = Order, size = Abundance), alpha = 0.3, color = "#ff9700") +
-  geom_count(data = prey1, aes(x = Fresh_water, y = Order, size = Abundance), alpha = 0.3, color = "#0080ff") +
-  geom_count(data = prey1, aes(x = Forest, y = Order, size = Abundance), alpha = 0.3, color = "forestgreen") +
-  geom_count(data = prey1, aes(x = Wetland, y = Order, size = Abundance), alpha = 0.3, color = "#3232a2") + 
-  geom_count(data = prey1, aes(x = Mountain, y = Order, size = Abundance), alpha = 0.3, color = "brown") + 
-  geom_count(data = prey1, aes(x = Urban, y = Order, size = Abundance), alpha = 0.3, color = "#8f6e98") + 
-  geom_count(data = prey1, aes(x = Coastal, y = Order, size = Abundance), alpha = 0.3, color = "pink") + 
-  geom_count(data = prey1, aes(x = Unknown, y = Order, size = Abundance), alpha = 0.3, color = "black") + 
-  facet_wrap(~bat.sp) + theme_bw() + 
-  scale_size_continuous(range = c(2, 12)) +
-  xlab("") + ylab("") + 
-  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
-  theme(text = element_text(size = 20)) + xlim(c(1,8)) +
-  theme(legend.position = "none") 
-  
-p # 
-
-# ## How well do these two compare? - many gaps, lets look at the most prevalent prey items. 
-# test <- left_join(taxasimple, swbugsh3, by = "Species") # 1887 obs 
-# test1 <- test %>% distinct(Species, .keep_all = TRUE) 
-# test2 <- unique(test1)
-# 
-# # 40 most prevalent prey items for both bats combined 
-# prey1 <- prevalentpreyall %>% distinct(Species, .keep_all = TRUE) 
-# prey1$Species # Not actually that useful for comparing between the two species... 
-# 
-# ## Better to split it up and then re-merge
-# preyB <- prevalentpreyMBRA %>% distinct(Species, .keep_all = TRUE) 
-# preyB$BatSpecies <- "M. brandtii" # select the top 30 prey items for MBRA
-# preyB$Species
-# # 162 distinct prey items - but not the same ones as MMYS! - but there are many with zero abundance and prevalence... 
-# 
-# preyM <- prevalentpreyMMYS %>% distinct(Species, .keep_all = TRUE) 
-# preyM$BatSpecies <- "M. mystacinus"
-# preyM$Species
-# # 162 distinct prey items - but not the same as MBRA! - but there are many with zero abundance and prevalence... 
-# 
-# # How many actual prey items for each bat species? 
-# preycheckB <- subset(preyB, preyB$Prevalence != 0 & preyB$TotalAbundance != 0) 
-# #67 prey items
-# 
-# preycheckM <- subset(preyM, preyM$Prevalence != 0 & preyM$TotalAbundance != 0) 
-# # 103 prey items 
-# 
-# ## For just comparing all prey items of the two bats, this object should be saved and stored 
-# 
-# preycheckBM <- full_join(preycheckB, preycheckM) %>% arrange(Order)
-# 
-
-
-
-```
-
-
-### Plotting abundance, prevalence, relative abundance across prey orders 
-
-```{r}
 ## Just differences in number of counts 
   ggplot() + 
   geom_count(data = prey1, aes(x = BatSpecies, y = Family, color = Order), alpha = 0.5) + 
   scale_size(range = c(5, 15)) +
   theme_bw() + xlab("") + ylab("") + 
-  theme(text = element_text(size = 20)) 
+  theme(text = element_text(size = 20)) # clearly different between bat species 
+  
+  ggplot() + 
+  geom_count(data = prey2, aes(x = bat.sp, y = Family, color = Order), alpha = 0.5) + 
+  scale_size(range = c(5, 15)) +
+  theme_bw() + xlab("") + ylab("") + 
+  theme(text = element_text(size = 20)) ## nearly identical
 
 # Total Abundance 
   ggplot() + 
@@ -927,10 +743,23 @@ p #
   theme(text = element_text(size = 20)) +
   geom_jitter()
 
+    ggplot() + 
+  geom_count(data = prey2, aes(x = bat.sp, y = Family, size = TotalAbundance, color = Order), alpha = 0.5) + 
+  scale_size(range = c(5, 12)) +
+  theme_bw() + xlab("") + ylab("") +
+  theme(text = element_text(size = 20)) +
+  geom_jitter()
   
   # Prevalence
   ggplot() + 
   geom_count(data = prey1, aes(x = BatSpecies, y = Family, size = Prevalence, color = Order), alpha = 0.5) + 
+  scale_size(range = c(5, 12)) +
+  theme_bw() + xlab("") + ylab("") +
+  theme(text = element_text(size = 20)) +
+  geom_jitter()
+  
+    ggplot() + 
+  geom_count(data = prey2, aes(x = bat.sp, y = Family, size = Prevalence, color = Order), alpha = 0.5) + 
   scale_size(range = c(5, 12)) +
   theme_bw() + xlab("") + ylab("") +
   theme(text = element_text(size = 20)) +
@@ -941,33 +770,28 @@ p #
 ################################################# 
   
   ## FamilyOrders
-  checkthis <- prey1 %>% dplyr::select(Family, Order) %>% 
+  checkthis1 <- prey1 %>% dplyr::select(Family, Order) %>% 
     distinct() %>% 
     mutate(Family = factor(Family)) %>% 
     mutate(Order = factor(Order))
-  # 53 levels 
+  # 53 families, 10 orders 
+    checkthis2 <- prey2 %>% dplyr::select(Family, Order) %>% 
+    distinct() %>% 
+    mutate(Family = factor(Family)) %>% 
+    mutate(Order = factor(Order))
+  # 53 families, 10 orders  
 
   ## Aggregate to Family level then use RRA - 
-prey2 <- prey1 %>% group_by(BatSpecies, Sample, Family, Order) %>% 
-    dplyr::summarize(FamAbun = sum(TotalAbundance)) 
-# NAs introduced where there should just be an Order for Family 
-prey2$Family <- as.character(prey2$Family)
-prey2 <- prey2 %>% mutate(Family = replace_na(Family, "FixThis"))
-prey2 <- prey2 %>% mutate(Family = case_when(
-  Family == "FixThis" ~ paste0(as.character(Order), " Order"), 
-  TRUE ~ as.character(Family))) %>% mutate(Family = factor(Family))  %>% arrange(Order)
+prey3 <- prey1 %>% group_by(BatSpecies, Sample, Family, Order) %>% 
+    dplyr::summarize(FamAbun = sum(TotalAbundance)) ## 1909 obs
 
-  checkthis <- prey2 %>% dplyr::select(Family, Order) %>% distinct() %>% arrange(Order) 
-  listcheck <- as.character(checkthis$Family) %>% unique() # list of 53, good 
-  prey2$Family <- factor(prey2$Family, levels = listcheck) 
-  prey2$Order <- factor(prey2$Order) # Create a nice pallete with 10 distinct colors 
+checkthis <- prey3 %>% dplyr::select(Family, Order) %>% distinct() %>% arrange(Order) 
+listcheck <- as.character(checkthis$Family) %>% unique() # list of 53, good 
+prey3$Family <- factor(prey3$Family, levels = listcheck) 
+prey3$Order <- factor(prey3$Order)
+
   
-  met.brewer("Hiroshige", n = 10)
-  met.brewer("OKeeffe1", n = 10)
-  met.brewer("Paquin", n = 10)
-  met.brewer("Hokusai2", n = 10)
-  
-  summary(prey2)
+summary(prey3)
   
  #    BatSpecies           Sample                     Family             Order         FamAbun     
  # Length:1909        Length:1909        Limoniidae    :  47   Diptera    :877   Min.   :   18  
@@ -981,10 +805,10 @@ prey2 <- prey2 %>% mutate(Family = case_when(
   
   
 ## THIS goes into the paper   
-# Now the families are arranged by Order!!  NICE
+# Now the families are arranged by Order!! 
 
 p <-  ggplot() + 
-  geom_count(data = prey2, aes(x = BatSpecies, y = Family, size = FamAbun, color = Order), alpha = 0.9,) + 
+  geom_count(data = prey3, aes(x = BatSpecies, y = Family, size = FamAbun, color = Order), alpha = 0.9,) + 
   scale_size_continuous(range = c(5, 12)) +
   scale_color_manual(values = met.brewer("Signac", n = 10)) +
   xlab("") + ylab("") +
@@ -998,11 +822,13 @@ p <-  ggplot() +
                                 colour = "#7F7F7F")) + 
   theme(text = element_text(size = 20)) +
   geom_jitter()
-p + guides(size = FALSE) #  + theme(legend.title = element_blank()) +
-# Range of dot sizes between 1000 and 50000 
+p + theme(legend.title = element_blank()) 
+
+# Range of dot sizes between 10000, 20000 and 30000 
 
 ###### Proportion of which prey is represented in between the two specie - Relative Abundance
 ##### No difference if this is relative or total abundance or even prevalence because it is a proportion 
+
 propbar <- ggplot(prey1) +
   geom_bar(aes(x=BatSpecies, y = Prevalence, fill = Order), stat = "identity", position = "fill") + 
   scale_y_continuous(labels = scales::percent) +
@@ -1020,7 +846,26 @@ propbar <- ggplot(prey1) +
 propbar +
   theme(legend.position = "bottom") 
 
-### Bipartite
+
+# Also totally identical for the two bat species ... 
+# propbar <- ggplot(prey2) +
+#   geom_bar(aes(x=bat.sp, y = TotalAbundance, fill = Order), stat = "identity", position = "fill") + 
+#   scale_y_continuous(labels = scales::percent) +
+#   scale_fill_manual(values = met.brewer("Signac", n = 10)) +
+#   xlab("") + ylab("") +
+#   theme(
+#   panel.background = element_rect(fill = "white",
+#                                 colour = "white",
+#                                 size = 0.5, linetype = "solid"),
+#   panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+#                                 colour = "#7F7F7F"), 
+#   panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+#                                 colour = "#7F7F7F")) + 
+#   theme(text = element_text(size = 25)) 
+# propbar +
+#   theme(legend.position = "bottom") 
+
+### Simple bipartite
 
 ## Make a bipatriate chart 
 
@@ -1039,15 +884,12 @@ bipart <- ggplot(prey1, aes(x = BatSpecies, y = Order, fill = TotalAbundance)) +
 bipart
 
 
-### Put those together to make one figure (done separately in publisher)
 ```
 
 
- 
- 
- 
-```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+## Quick summaries for the results section 
 
+```{r}
 # Summaries for the first paragraph of the results section 
 bbdf <- psmelt(batsbugsy) # 88689 obs of 19 vars
 
@@ -1129,131 +971,15 @@ str(batsbugszM)
  # $ TotalAbundance: num  699 646 572 883 519 507 498 499 486 480 ...
  # $ BatSpecies    : Factor w/ 1 level "M. mystacinus": 1 1 1 1 1 1 1 1 1 1 ...
 
-
-
-## Remember. This changes each time you run it. Eventually, should just save a csv file of one output for this and reuse it in a separate analysis probably. 
-
-bbord_b <- ordinate(batsbugsy, "NMDS", distance="bray", k = 3, trymax = 100)
-bbord_b 
-
-# Warning messages:
-# 1: In metaMDS(veganifyOTU(physeq), distance, ...) :
-#   stress is (nearly) zero: you may have insufficient data
-# 2: In postMDS(out$points, dis, plot = max(0, plot - 1), ...) :
-#   skipping half-change scaling: too few points below threshold
-
-
-# Call:
-# metaMDS(comm = veganifyOTU(physeq), distance = distance, k = 4) 
-# 
-# global Multidimensional Scaling using monoMDS
-# 
-# Data:     wisconsin(sqrt(veganifyOTU(physeq))) 
-# Distance: bray 
-# 
-# Dimensions: 4 
-# Stress:     0.0005402091 
-# Stress type 1, weak ties
-# Best solution was not repeated after 20 tries
-# The best solution was from try 11 (random start)
-# Scaling: centring, PC rotation 
-# Species: expanded scores based on ‘wisconsin(sqrt(veganifyOTU(physeq)))’ 
-
-bbord_j <- ordinate(batsbugsy, "NMDS", distance="jaccard")
-bbord_j 
-
-
-# Warning message:
-# In postMDS(out$points, dis, plot = max(0, plot - 1), ...) :
-#   skipping half-change scaling: too few points below threshold
-# 
-# 
-# Call:
-# metaMDS(comm = veganifyOTU(physeq), distance = distance, k = 4) 
-# 
-# global Multidimensional Scaling using monoMDS
-# 
-# Data:     wisconsin(sqrt(veganifyOTU(physeq))) 
-# Distance: jaccard 
-# 
-# Dimensions: 4 
-# Stress:     0.001136877 
-# Stress type 1, weak ties
-# Best solution was not repeated after 20 tries
-# The best solution was from try 5 (random start)
-# Scaling: centring, PC rotation 
-# Species: expanded scores based on ‘wisconsin(sqrt(veganifyOTU(physeq)))’ 
-#         
-
-# bbord_p <- ordinate(batsbugsy, "PCA")
-# bbord_p 
-
-# O12<- plot_ordination(batsbugsy, bbord_b, type = "taxa", color = "Order", axes = c(1,2)) + 
-#   theme_bw() + 
-#   ggtitle("NMDS1 and 2 with Bray-Curtis difference index ")
-# O12
-# 
-# O12<- plot_ordination(batsbugsy, bbord_b, color = "bat.sp", axes = c(1,2)) + 
-#   theme_bw() + 
-#   ggtitle("NMDS1 and 2 with Bray-Curtis difference index ")
-# O12
-# 
-# O12<- plot_ordination(batsbugsy, bbord_j, color = "bat.sp", axes = c(1,2)) + 
-#   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
-#   theme_bw() + 
-#   ggtitle("NMDS1 and 2 with Jaccard difference index ")
-# O12
-# 
-# ############################################################################
-# 
-# O13<- plot_ordination(batsbugsy, bbord_b, color = "bat.sp", axes = c(1,3)) + 
-#   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
-#   theme_bw()+ 
-#   ggtitle("NMDS1 and 3 with Bray-Curtis difference index ")
-# O13
-# 
-# O13<- plot_ordination(batsbugsy, bbord_j, color = "bat.sp", axes = c(1,3)) + 
-#   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
-#   theme_bw()+ 
-#   ggtitle("NMDS1 and 3 with Jaccard difference index ")
-# O13
-# 
-# ############################################################################
-# 
-# O14<- plot_ordination(batsbugsy, bbord_b, color = "bat.sp", axes = c(1,4)) + 
-#   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
-#   theme_bw() + 
-#   ggtitle("NMDS1 and 4 with Bray-Curtis difference index ")
-# O14 
-# 
-# O14<- plot_ordination(batsbugsy, bbord_j, color = "bat.sp", axes = c(1,4)) + 
-#   stat_conf_ellipse(aes(fill=bat.sp ),alpha=0.25,geom="polygon",level=0.95) + 
-#   theme_bw() + 
-#   ggtitle("NMDS1 and 4 with Jaccard difference index ")
-# O14 
-
-############################################################################
-
-
-
-# envfit() from vegan to stack on top of ordination. Typically best for continuous variables, also accepts factor variables. This is an alternative to ANOVA. Not a real statistcal test. 
-
-### Start here tomorrow 
-
-#Create a dataframe with NMDS scores
-# ordscore <- scores(bbord, choices=c(1,2,3,4,5), tidy = TRUE)
-# ordscore <- as.data.frame(ordscore)
-# ordscore <- cbind(rownames(ordscore), data.frame(ordscore, row.names=NULL))
-# names(ordscore)[1] <- "Sample"
-#1934 obs of 8 vars 
- 
 ```
-
 
 
 ## Iris plots 
 ```{r}
 
+
+## Same palette as was used in the earlier figure 
+## Double check that this is color blind dsafe  
 met.brewer("Signac", n = 10)
 library(colorBlindness)
 ## What is already in the bar plot
@@ -1265,36 +991,13 @@ cvdPlot(replacePlotColor(
 
   displayColors(c(
     "#D8443C", "#9F5691", "#633372", 
+    # Diptera   #Leptdoptera #Neuroptera
     "#E87E8B", "#92C051", "#1F6E9C",
+    #Hymenoptera #Trichoptera #Orthoptera 
     "#F4C40F", "#DE597C", "#2B9B81", "#FE9B00"))
+    #Araneae   #Hemioptera  #Psocodea #Coleoptera 
   
   ################################################
-## Alternatives for later 
-cvdPlot(replacePlotColor(
-  displayColors(c(
-    "#D96136", "#FFB628", "#6B8F71", 
-    "#AFC9FF", "#A94163", "#E63946",
-    "#E87E8B", "#633372", "#1F6E9C", "#954E46")))) 
-
-cvdPlot(replacePlotColor(
-  displayColors(met.brewer("Signac", n = 10)))) 
-
-cvdPlot(replacePlotColor(
-  displayColors(met.brewer("Thomas", n = 10)))) 
-
-cvdPlot(replacePlotColor(
-  displayColors(met.brewer("Ingres", n = 10)))) 
-
-cvdPlot(replacePlotColor(
-  displayColors(met.brewer("Hiroshige", n = 10)))) 
-
-cvdPlot(replacePlotColor(
-  displayColors(met.brewer("Paquin", n = 10)))) 
-  ################################################
-
-
-
-
 
   
 batsbugsy %>% 
@@ -1329,15 +1032,27 @@ MMYS %>%
   ord_plot_iris(tax_level = "Order", ord_plot = "none", anno_colour = "bat.sp") +
     scale_fill_manual(values = c(    
     "#D8443C", "#9F5691", "#633372", 
-    "#1F6E9C", "#F4C40F", "#92C051", "#2B9B81",
-    "#E87E8B", "#FE9B00")) +
-    scale_color_manual(values = "white") +
-  theme(legend.position = "none") 
+    "#1F6E9C", "#F4C40F", "#92C051", 
+    "#2B9B81", "#E87E8B", "#FE9B00")) +
+   theme(legend.position = "none") +
+    scale_color_manual(values = "white")  
 
 # checked with legends that the colors matched and then removed for the final figure. 
-
+test <- tax_fix(batsbugsy)
 
 ### Composition bar plots
+test %>%  
+  comp_barplot(tax_level = "Order") +
+  scale_fill_manual(values = c(
+    "#D8443C", "#9F5691", "#633372", 
+    "#E87E8B", "#92C051", "#1F6E9C",
+    "#F4C40F", "#DE597C", "#2B9B81", "#FE9B00")) +
+    scale_color_manual(values = "white") +
+  coord_flip() +
+  theme(text = element_text(size = 25))+
+  theme(legend.position = "none")
+
+
 MBRA %>%
   comp_barplot(tax_level = "Order") +
   scale_fill_manual(values = c(    
@@ -1345,22 +1060,21 @@ MBRA %>%
     "#E87E8B", "#DE597C", "#92C051")) +
     scale_color_manual(values = "white") +
   coord_flip() +
-  theme(text = element_text(size = 25))+
+  theme(text = element_text(size = 25)) +
   theme(legend.position = "none")
 
 MMYS %>%
   comp_barplot(tax_level = "Order") +
   scale_fill_manual(values = c(    
     "#D8443C", "#9F5691", "#633372", 
-    "#E87E8B", "#92C051", "#1F6E9C",
-    "#F4C40F", "#DE597C", "#2B9B81", "#FE9B00")) +
+    "#1F6E9C", "#F4C40F", "#92C051", 
+    "#2B9B81", "#DE597C", "#FE9B00")) +
     scale_color_manual(values = "white") +
   coord_flip() +
-  theme(text = element_text(size = 25)) +
+  theme(text = element_text(size = 25))  +
   theme(legend.position = "none")
 
 #¤ Just for the legend 
-
 batsbugsy %>%
   comp_barplot(tax_level = "Order") +
   scale_fill_manual(labels = c("Diptera", "Lepidoptera", "Neuroptera",
@@ -1375,15 +1089,12 @@ batsbugsy %>%
   theme(text = element_text(size = 25))+
   theme(legend.position = "bottom")
 
-
-
 ```
-
-
 
 
 ## Different ordination approach 
 https://david-barnett.github.io/microViz/articles/web-only/ordination.html
+
 ```{r}
 
 pca <- batsbugsy %>% 
@@ -1400,6 +1111,7 @@ batsbugsy %>%
   ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.5) +
   scale_colour_brewer(palette = "Set1", aesthetics = c("fill", "colour"), 
                       name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="euclid", alpha=0.3, aes(fill =bat.sp)) +
   theme_bw() +
   ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
   ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
@@ -1417,12 +1129,9 @@ head(bbdf1)
 ```
 
 
-
-
 # Mixed linear model 
 
 https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics/anova/how-to/mixed-effects-model/interpret-the-results/key-results/#step-2-determine-whether-the-fixed-effect-terms-significantly-affect-the-response
-
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
@@ -1436,15 +1145,21 @@ bbdf_sh %>% ggplot() +
   geom_bar(aes(x = Sample, y = Shannon, color = bat.sp), stat = "identity")
 
 plot_richness(batsbugsy) 
+
 M <- plot_richness(MMYS)
 M
+
 B <- plot_richness(MBRA)
 B
 
+
+## Shannon diversity compared between the two bat species 
 plot_richness(batsbugsy, x="bat.sp", measures="Shannon", color = "bat.sp")+
-  geom_boxplot(alpha=0.6)+ 
+  geom_boxplot() + 
+  theme_bw() +
   theme(legend.position="none", axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12))
 
+# For each sample 
 batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
 plot_richness(batsbugsy, x="sampleid", measures="Shannon", color = "bat.sp")+
   geom_boxplot(alpha=0.6) 
@@ -1525,7 +1240,9 @@ plot_model(m3, type = "eff", terms = "bat.sp")
 
 
 ### Next steps: 
-
+- Proper diversity index plots / table 
 - Pros / cons of PCA, Pcoa and NMDS? 
 - Model predictions of NLME model 
 - Shannon diversity index, within species and between species 
+```
+
