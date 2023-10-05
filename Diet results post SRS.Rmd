@@ -456,6 +456,15 @@ batsbugsy
 # tax_table()   Taxonomy Table:     [ 1887 taxa by 7 taxonomic ranks ]:
 # taxa are rows
 
+  sample_names(batsbugsy)
+  rank_names(batsbugsy)
+  sample_variables(batsbugsy)
+  
+sort(colSums(otu_table(batsbugsy)))
+quantile(colSums(otu_table(batsbugsy)))
+summary(colSums(otu_table(batsbugsy)))
+   # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   # 3857    3934    3950    3949    3960    4000 
 # Quick check 
 plot_bar(batsbugsy, x = "bat.sp", fill = "Order") +
   xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
@@ -715,15 +724,45 @@ batsbugsy
 
 ## ALTERNATIVE 
 ```{r}
-devtools::install_github("microbiome/miaTime")
-BiocManager::install("miaViz")
-BiocManager::install("mia")
 
-library(miaTime)
-library(miaViz)
+## MBRA
 
+# Agglomerate taxa at genus level
+MBRA.spec <- tax_glom(MBRA, taxrank = "Species")
 
-tsbats <- transformCounts(batsbugsy, MARGIN = "samples", method = "relabundance")
+# Top N taxa
+N <- 10
+top <- names(sort(taxa_sums(MBRA.spec), decreasing = TRUE))[1:N]
+
+# Calculate relative abundance
+MBRA.spec.prop <- transform_sample_counts(MBRA.spec, function(x) x / sum(x) )
+
+# Subset object to top N taxa
+MBRA.spec.prop.top <- prune_taxa(top, MBRA.spec.prop)
+
+topall1 <- MBRA.spec.prop.top %>% psmelt() %>% head(10)
+
+topall1 %>%  dplyr::select(Order, Species) %>% kable() %>% kable_minimal()
+
+## MMYS
+
+# Agglomerate taxa at genus level
+MMYS.spec <- tax_glom(MMYS, taxrank = "Species")
+
+# Top N taxa
+N <- 10
+top <- names(sort(taxa_sums(MMYS.spec), decreasing = TRUE))[1:N]
+
+# Calculate relative abundance
+MMYS.spec.prop <- transform_sample_counts(MMYS.spec, function(x) x / sum(x) )
+
+# Subset object to top N taxa
+MMYS.spec.prop.top <- prune_taxa(top, MMYS.spec.prop)
+
+topall1 <- MMYS.spec.prop.top %>% psmelt() %>% head(10)
+
+topall1 %>%  dplyr::select(Species, Order, Abundance) %>% kable() %>% kable_minimal()
+
 ```
 
 
@@ -1137,8 +1176,9 @@ batsbugsy %>%
   ggside::theme_ggside_void() + 
   theme(legend.position = "none")
 
+## This is the figure currently in the manuscript 
 batsbugsy %>%
-  tax_transform("log10", rank = "Family") %>%
+  tax_transform("log10", rank = "Order") %>%
   dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
   ord_calc("PCoA") %>%
   ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
@@ -1149,7 +1189,7 @@ batsbugsy %>%
   ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
   ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
   ggside::theme_ggside_void() + 
-  theme(legend.position = "none")
+  theme(legend.position = "bottom")
 
 ### Pcoa - Bray - curtis, relative abundance 
 batsbugsy %>%
