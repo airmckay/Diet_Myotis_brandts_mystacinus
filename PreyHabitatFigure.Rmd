@@ -200,52 +200,292 @@ prey1 <- preyx  %>%
 
   checkthis <- prey1 %>% dplyr::select(Family, Order) %>% distinct() %>% arrange(Order) 
   listcheck <- as.character(checkthis$Family) %>% unique() # list of 53, good 
-  prey1$Family <- factor(prey1$Family, levels = listcheck) 
-  prey1$Order <- factor(prey1$Order) # Create a nice pallete with 10 distinct colors 
+  prey1$Family <- factor(prey1$Family, levels = listcheck) %>% droplevels() 
+  prey1$Order <- factor(prey1$Order) %>% droplevels() # Create a nice pallete with 10 distinct colors
+  
+  ## 63731 prey items 
+
+# p <- ggplot() + 
+#   geom_count(data = prey1, aes(x = Agriculture, y = Family, size = Prevalence), alpha = 0.5, color = "#ff9700") +
+#   geom_count(data = prey1, aes(x = Fresh_water, y = Family, size = Prevalence), alpha = 0.5, color = "#0080ff") +
+#   geom_count(data = prey1, aes(x = Forest, y = Family, size = Prevalence), alpha = 0.5, color = "forestgreen") +
+#   geom_count(data = prey1, aes(x = Wetland, y = Family, size = Prevalence), alpha = 0.5, color = "#3232a2") + 
+#   geom_count(data = prey1, aes(x = Mountain, y = Family, size = Prevalence), alpha = 0.5, color = "brown") + 
+#   geom_count(data = prey1, aes(x = Urban, y = Family, size = Prevalence), alpha = 0.5, color = "#8f6e98") + 
+#   geom_count(data = prey1, aes(x = Coastal, y = Family, size = Prevalence), alpha = 0.5, color = "salmon") + 
+#   geom_count(data = prey1, aes(x = Unknown, y = Family, size = Prevalence), alpha = 0.5, color = "black") + 
+#   facet_wrap(~BatSpecies) + 
+#     theme(
+#   panel.background = element_rect(fill = "white",
+#                                 colour = "white",
+#                                 size = 0.5, linetype = "solid"),
+#   panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+#                                 colour = "#7F7F7F"), 
+#   panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+#                                 colour = "#7F7F7F")) + 
+#   xlab("") + ylab("") + 
+#   scale_size_continuous(range = c(5, 12)) +
+#   theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+#   theme(text = element_text(size = 20)) + xlim(c(1,8)) #+
+
 
 p <- ggplot() + 
-  geom_count(data = prey1, aes(x = Agriculture, y = Family, size = Prevalence), alpha = 0.5, color = "#ff9700") +
-  geom_count(data = prey1, aes(x = Fresh_water, y = Family, size = Prevalence), alpha = 0.5, color = "#0080ff") +
-  geom_count(data = prey1, aes(x = Forest, y = Family, size = Prevalence), alpha = 0.5, color = "forestgreen") +
-  geom_count(data = prey1, aes(x = Wetland, y = Family, size = Prevalence), alpha = 0.5, color = "#3232a2") + 
-  geom_count(data = prey1, aes(x = Mountain, y = Family, size = Prevalence), alpha = 0.5, color = "brown") + 
-  geom_count(data = prey1, aes(x = Urban, y = Family, size = Prevalence), alpha = 0.5, color = "#8f6e98") + 
-  geom_count(data = prey1, aes(x = Coastal, y = Family, size = Prevalence), alpha = 0.5, color = "salmon") + 
-  geom_count(data = prey1, aes(x = Unknown, y = Family, size = Prevalence), alpha = 0.5, color = "black") + 
-  facet_wrap(~bat.sp) + 
-    theme(
-  panel.background = element_rect(fill = "white",
-                                colour = "white",
-                                size = 0.5, linetype = "solid"),
-  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
-                                colour = "#7F7F7F"), 
-  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
-                                colour = "#7F7F7F")) + 
+  geom_count(data = prey1, aes(x = Agriculture, y = Species, size = Prevalence), alpha = 0.5, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Species, size = Prevalence), alpha = 0.5, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Species, size = Prevalence), alpha = 0.5, color = "forestgreen") +
+  geom_count(data = prey1, aes(x = Wetland, y = Species, size = Prevalence), alpha = 0.5, color = "#3232a2") + 
+  geom_count(data = prey1, aes(x = Mountain, y = Species, size = Prevalence), alpha = 0.5, color = "brown") + 
+  geom_count(data = prey1, aes(x = Urban, y = Species, size = Prevalence), alpha = 0.5, color = "#8f6e98") + 
+  geom_count(data = prey1, aes(x = Coastal, y = Species, size = Prevalence), alpha = 0.5, color = "salmon") + 
+  geom_count(data = prey1, aes(x = Unknown, y = Species, size = Prevalence), alpha = 0.5, color = "black") + 
+  facet_wrap(BatSpecies ~ Order, nrow = 3) + 
+  theme_bw() + 
   xlab("") + ylab("") + 
   scale_size_continuous(range = c(5, 12)) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
   theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
-  theme(text = element_text(size = 20)) + xlim(c(1,8)) +
-  theme(legend.position = "none") 
+  theme(text = element_text(size = 20)) + xlim(c(1,8)) + 
+  theme(legend.position = "none") + coord_flip() 
   
+
 p # Not possible to see nuanced differences without with Prevalence, but it is more obvious with relative abundance. 
 
-# Prevalence of prey items related back to habitat type - Order 
-p <- ggplot() + 
-  geom_count(data = prey1, aes(x = Agriculture, y = Order, size = Abundance), alpha = 0.3, color = "#ff9700") +
-  geom_count(data = prey1, aes(x = Fresh_water, y = Order, size = Abundance), alpha = 0.3, color = "#0080ff") +
-  geom_count(data = prey1, aes(x = Forest, y = Order, size = Abundance), alpha = 0.3, color = "forestgreen") +
-  geom_count(data = prey1, aes(x = Wetland, y = Order, size = Abundance), alpha = 0.3, color = "#3232a2") + 
-  geom_count(data = prey1, aes(x = Mountain, y = Order, size = Abundance), alpha = 0.3, color = "brown") + 
-  geom_count(data = prey1, aes(x = Urban, y = Order, size = Abundance), alpha = 0.3, color = "#8f6e98") + 
-  geom_count(data = prey1, aes(x = Coastal, y = Order, size = Abundance), alpha = 0.3, color = "pink") + 
-  geom_count(data = prey1, aes(x = Unknown, y = Order, size = Abundance), alpha = 0.3, color = "black") + 
-  facet_wrap(~bat.sp) + theme_bw() + 
-  scale_size_continuous(range = c(2, 12)) +
-  xlab("") + ylab("") + 
-  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
-  theme(text = element_text(size = 20)) + xlim(c(1,8)) +
-  theme(legend.position = "none") 
-  
-p # 
+# # Prevalence of prey items related back to habitat type - Order 
+# p <- ggplot() + 
+#   geom_count(data = prey1, aes(x = Agriculture, y = Order, size = Prevalence), alpha = 0.3, color = "#ff9700") +
+#   geom_count(data = prey1, aes(x = Fresh_water, y = Order, size = Prevalence), alpha = 0.3, color = "#0080ff") +
+#   geom_count(data = prey1, aes(x = Forest, y = Order, size = Prevalence), alpha = 0.3, color = "forestgreen") +
+#   geom_count(data = prey1, aes(x = Wetland, y = Order, size = Prevalence), alpha = 0.3, color = "#3232a2") + 
+#   geom_count(data = prey1, aes(x = Mountain, y = Order, size = Prevalence), alpha = 0.3, color = "brown") + 
+#   geom_count(data = prey1, aes(x = Urban, y = Order, size = Prevalence), alpha = 0.3, color = "#8f6e98") + 
+#   geom_count(data = prey1, aes(x = Coastal, y = Order, size = Prevalence), alpha = 0.3, color = "pink") + 
+#   geom_count(data = prey1, aes(x = Unknown, y = Order, size = Prevalence), alpha = 0.3, color = "black") + 
+#   facet_wrap(~bat.sp) + theme_bw() + 
+#   scale_size_continuous(range = c(2, 12)) +
+#   xlab("") + ylab("") + 
+#   theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+#   theme(text = element_text(size = 20)) + xlim(c(1,8)) #+
+#   #theme(legend.position = "none") 
+#   
+# p # 
 
 ```
+
+
+## Alternatively 
+
+https://www.rpubs.com/RGrieger/545184
+```{r}
+## I manually searched for these prey items plus some others. 
+preyx <- prey %>% 
+  dplyr::mutate(habitat1 = case_when(
+    Species %in% c("Helina Genus", "Thricops semicinereus") ~ "(S) (L) (V) (J) (U) (H) (F)",
+    Species %in% c("Chironomidae Family", "Tricyphona alticola", "Ula mixta", "Ula spp.") ~ "(S) (V) (L) (J)",
+    Species %in% c("Tipula Genus", "Tipula iberica", "Tipulidae Family") ~ "(S) (V) (L) (J) (U)",
+    Species %in% c("Nemapogon cloacella", "Hemerobius pini", 
+                   "Hemerobius perelegans", "Hemerobius fenestratus",
+                   "Neolygus contaminatus", "Neuratelia Genus", 
+                   "Pseudatemelia josephinae") ~ "(S)", 
+    TRUE ~ as.character(habitat))) 
+
+
+prey1 <- preyx  %>% 
+  mutate(Agriculture = case_when(
+  str_detect(habitat1, pattern = "(J)") ~ 1, # Agriculture 
+  TRUE ~ 0)) %>% 
+  mutate(Forest = case_when(
+  str_detect(habitat1, pattern = "(S)") ~ 1, # Forest
+  TRUE ~ 0)) %>% 
+  mutate(Fresh_water = case_when(
+  str_detect(habitat1, pattern = "(L)") ~ 1, # Fresh water 
+  TRUE ~ 0)) %>% 
+  mutate(Wetland = case_when(
+  str_detect(habitat1, pattern = "(V)") ~ 1, # Wetland
+  TRUE ~ 0)) %>% 
+  mutate(Mountain = case_when(
+  str_detect(habitat1, pattern = "(F)") ~ 1, # Mountain 
+  TRUE ~ 0)) %>% 
+  mutate(Urban = case_when(
+  str_detect(habitat1, pattern = "(U)") ~ 1, # Urban  
+  TRUE ~ 0)) %>%
+  mutate(Coastal = case_when(
+  str_detect(habitat1, pattern = "(H)") ~ 1, # Coastal  
+  TRUE ~ 0)) %>% 
+  mutate(Unknown = case_when(
+  str_detect(habitat1, pattern = "Unknown") ~ 1,
+  TRUE ~ 0)) 
+
+# write.csv(prey1, file = file.path(output_today, "BatPreyDatawHabitat.csv")) 
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-21"
+
+  
+prey1$Agriculture <- as.logical(prey1$Agriculture)
+prey1$Forest <- as.logical(prey1$Forest)
+prey1$Fresh_water <- as.logical(prey1$Fresh_water)
+prey1$Wetland <- as.logical(prey1$Wetland)
+prey1$Mountain <- as.logical(prey1$Mountain)
+prey1$Urban <- as.logical(prey1$Urban)
+prey1$Coastal <- as.logical(prey1$Coastal)
+prey1$Unknown <- as.logical(prey1$Unknown)
+
+##################################################
+###### Comparing habitat of prey ######
+##################################################
+
+# Prevalence of prey items related back to habitat type - Family 
+
+  checkthis <- prey1 %>% dplyr::select(Family, Order) %>% distinct() %>% arrange(Order) 
+  listcheck <- as.character(checkthis$Family) %>% unique() # list of 53, good 
+  prey1$Family <- factor(prey1$Family, levels = listcheck) 
+  prey1$Order <- factor(prey1$Order) # Create a nice pallete with 10 distinct colors
+  
+## Make a heatmap - MBRA
+  
+preyxb <- prey1 %>% dplyr::filter(BatSpecies == "M. brandtii") %>% 
+  dplyr::select(Species, Agriculture, Forest, Fresh_water, Wetland, Mountain, Urban, Coastal, Unknown) %>% 
+  mutate(Species = factor(Species)) 
+#15712 obs (reads) of 82 different prey items for MBRA 
+
+sumb <- preyxb %>% group_by(Species) %>% dplyr::summarize(n = n()) # n is the number of times each prey item occurs 
+
+Preyxb <- left_join(preyxb, sumb)
+
+# For when each habitat is a continuous scale not logical 
+# ggplot(Preyxb) +
+#   geom_tile(aes(x = Agriculture, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Forest, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Fresh_water, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Wetland, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Mountain, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Urban, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Coastal, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Unknown, y = Species, fill = n)) +
+#   scale_fill_gradient(low = "gray", high = "black") +
+#   theme_bw() + 
+#   xlab("") + ylab("Prey item")
+  
+## Make a heatmap - MMYS
+  
+preyxm <- prey1 %>% dplyr::filter(BatSpecies == "M. mystacinus") %>% 
+  dplyr::select(Species, Agriculture, Forest, Fresh_water, Wetland, Mountain, Urban, Coastal, Unknown) %>% 
+  mutate(Species = factor(Species)) 
+#15712 obs (reads) of 82 different prey items for MBRA 
+
+sumb <- preyxm %>% group_by(Species) %>% dplyr::summarize(n = n()) # n is the number of times each prey item occurs 
+
+Preyxm <- left_join(preyxm, sumb)
+
+
+# For when each habitat is a continuous scale not logical 
+# ggplot(Preyxm) +
+#   geom_tile(aes(x = Agriculture, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Forest, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Fresh_water, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Wetland, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Mountain, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Urban, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Coastal, y = Species, fill = n)) + 
+#   geom_tile(aes(x = Unknown, y = Species, fill = n)) +
+#   scale_fill_gradient(low = "gray", high = "black") +
+#   theme_bw() + 
+#   xlab("") + ylab("Prey item")
+
+
+### This doesnt really work either
+# or
+agriculture <- ggplot(Preyxm) +
+  geom_tile(aes(x = Forest, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "gold") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(legend.position = "none") 
+agriculture
+
+forest <- ggplot(Preyxm) +
+  geom_tile(aes(x = Forest, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "darkgreen") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+forest
+
+freshwater <- forest <- ggplot(Preyxm) +
+  geom_tile(aes(x = Forest, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "#0080ff") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+freshwater
+
+wetland <- ggplot(Preyxm) +
+  geom_tile(aes(x = Forest, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "#3232a2") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+wetland
+
+mountain <- ggplot(Preyxm) +
+  geom_tile(aes(x = Mountain, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "brown") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+mountain
+
+urban <- ggplot(Preyxm) +
+  geom_tile(aes(x = Urban, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "#8f6e98") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+urban
+
+
+coastal <- ggplot(Preyxm) +
+  geom_tile(aes(x = Coastal, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "pink") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+coastal
+
+unknown <- ggplot(Preyxm) +
+  geom_tile(aes(x = Unknown, y = Species, fill = n)) + 
+  scale_fill_gradient(low = "white", high = "black") +
+  theme_classic() + 
+  xlim("TRUE") +
+  xlab("") + ylab("") +
+  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
+  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
+  theme(legend.position = "none")
+unknown
+
+library(cowplot)
+cowplot::plot_grid(agriculture, forest, freshwater, nrow = 1, ncol = 3)
+
+
+
+
+```
+

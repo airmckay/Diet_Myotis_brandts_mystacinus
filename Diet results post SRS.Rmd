@@ -44,6 +44,8 @@ library(microViz)
 library(beepr)
 library(microViz)
 library(mixOmics)
+library(miaTime)
+library(miaViz)
 library(ade4)
 library(nlme)
 library(pals)
@@ -666,6 +668,10 @@ TaxOrder <- batsbugszM %>% dplyr::select(Species, Order) %>% distinct()
 topallM <- left_join(topallM, TaxOrder)
 kable(topallM) %>% kable_minimal()
 
+# or
+
+top_taxa(batsbugsy, n = 20) 
+
 ######################################################
 
 ## Combine the two - for visualizing differences 
@@ -706,6 +712,19 @@ batsbugsy
 
 ```
 
+
+## ALTERNATIVE 
+```{r}
+devtools::install_github("microbiome/miaTime")
+BiocManager::install("miaViz")
+BiocManager::install("mia")
+
+library(miaTime)
+library(miaViz)
+
+
+tsbats <- transformCounts(batsbugsy, MARGIN = "samples", method = "relabundance")
+```
 
 
 ## Plotting abundance, prevalence, relative abundance across prey orders 
@@ -785,6 +804,8 @@ listcheck <- as.character(checkthis$Family) %>% unique() # list of 53, good
 prey3$Family <- factor(prey3$Family, levels = listcheck) 
 prey3$Order <- factor(prey3$Order)
 
+famlist <- unique(prey3$Family)
+
   
 summary(prey3)
   
@@ -805,6 +826,24 @@ summary(prey3)
 p <-  ggplot() + 
   geom_count(data = prey3, aes(x = BatSpecies, y = Family, size = FamAbun, color = Order), alpha = 0.9,) + 
   scale_size_continuous(range = c(5, 12)) +
+  scale_color_manual(values = met.brewer("Signac", n = 10)) +
+  xlab("") + ylab("") +
+  theme(
+  panel.background = element_rect(fill = "white",
+                                colour = "white",
+                                size = 0.5, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "#7F7F7F"), 
+  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "#7F7F7F")) + 
+  theme(text = element_text(size = 20)) +
+  geom_jitter()
+p + theme(legend.title = element_blank()) 
+
+## Alternatively could make this into a prop bar?
+
+p <-  ggplot() + 
+  geom_point(data = prey3, aes(x = BatSpecies, y = Family, color = Order), size = 6) + 
   scale_color_manual(values = met.brewer("Signac", n = 10)) +
   xlab("") + ylab("") +
   theme(
@@ -946,8 +985,12 @@ str(batsbugszM)
  # $ TotalAbundance: num  699 646 572 883 519 507 498 499 486 480 ...
  # $ BatSpecies    : Factor w/ 1 level "M. mystacinus": 1 1 1 1 1 1 1 1 1 1 ...
 
-```
 
+## top taxa
+
+
+
+```
 
 ## Iris plots 
 ```{r}
@@ -1073,24 +1116,55 @@ https://david-barnett.github.io/microViz/articles/web-only/ordination.html
 ```{r}
 
 pca <- batsbugsy %>% 
-   tax_transform(trans = "clr", rank = "Genus") %>% 
-   ord_calc() %>% ord_plot(color = "bat.sp", size = 2) # can get pca scores 
+   tax_transform(trans = "log10", rank = "Order") %>% 
+   dist_calc(dist = "bray") %>% 
+   ord_calc("PCoA") %>% ord_plot(color = "bat.sp", size = 2) # can get pca scores 
 
+batcolors = c("#b3cde0", "#011f4b")
 
-
-### Pcoa
+### Pcoa - Bray - Curtis, log10 transformed
 batsbugsy %>%
   tax_transform("identity", rank = "Family") %>%
-  dist_calc(dist = "aitchison") %>%
+  dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
   ord_calc("PCoA") %>%
-  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.5) +
-  scale_colour_brewer(palette = "Set1", aesthetics = c("fill", "colour"), 
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
                       name = "Bat species") +
-  stat_ellipse(geom = "polygon", type="euclid", alpha=0.3, aes(fill =bat.sp)) +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
   theme_bw() +
   ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
   ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::theme_ggside_void()
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
+
+batsbugsy %>%
+  tax_transform("log10", rank = "Family") %>%
+  dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
+  ord_calc("PCoA") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
+
+### Pcoa - Bray - curtis, relative abundance 
+batsbugsy %>%
+  tax_transform("compositional", rank = "Family") %>%
+  dist_calc(dist = "bray") %>% 
+  ord_calc("PCoA") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
 
 
 ## combine pca scores with batsbugs object
