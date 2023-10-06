@@ -1155,6 +1155,49 @@ Simpson: The probability that two randomly chosen individuals are the same speci
 Fisher: This measures the evenness with which individuals are divided among the taxa present
 
 ```{r}
+sh <- estimate_richness(batsbugsy, split = TRUE, measures = "Shannon") %>% rownames_to_column("Sample")
+
+
+# Diversity within each sample 
+bbdf_sh <- left_join(bbdf, sh)
+bbdf_sh %>% ggplot() + 
+  geom_bar(aes(x = Sample, y = Shannon, color = bat.sp), stat = "identity")
+
+plot_richness(batsbugsy) 
+
+# M <- plot_richness(MMYS)
+# M
+# 
+# B <- plot_richness(MBRA)
+# B
+
+
+
+# For each sample 
+batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
+MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
+MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
+
+plot_richness(batsbugsy, x="sampleid", measures="Shannon")+
+  geom_boxplot(aes(fill = bat.sp), color = "gray") +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  facet_wrap(~bat.sp) +
+  theme_bw() # Useful to look at but not something I feel needs to be in the manuscript
+
+# shannonB <- plot_richness(MBRA, x="sampleid", measures="Shannon")+
+#   geom_boxplot(fill = "#b3cde0", color = "gray", width = 2) +
+#   theme_bw() + 
+#   ggtitle("M. brandtii") + 
+#   theme(text = element_text(size = 15)) + xlab("")
+# shannonB
+# 
+# shannonM <- plot_richness(MMYS, x="sampleid", measures="Shannon")+
+#   geom_boxplot(fill = "#011f4b", color = "gray") +
+#   theme_bw() + 
+#   ggtitle("M. mystacinus") +
+#   theme(text = element_text(size = 15)) + xlab("")
+# shannonM
 
 
 ## Alpha diversity - diversity between communities 
@@ -1256,62 +1299,21 @@ summary(m1) #
 # Number of Observations: 47
 # Number of Groups: 47 
 
-# 
-# ## Shannon diversity 
-# summary(aov(Shannon ~ bat.sp, data = rich2))
-# #             Df Sum Sq Mean Sq F value Pr(>F)
-# # bat.sp       1  0.006 0.00591   0.049  0.825
-# # Residuals   45  5.405 0.12012  
-# 
-# summary(aov(Shannon ~ bat.sp*year, data = rich2))
-# 
-# #             Df Sum Sq Mean Sq F value Pr(>F)
-# # bat.sp       1  0.006 0.00591   0.048  0.828
-# # year         1  0.043 0.04298   0.346  0.560
-# # bat.sp:year  1  0.020 0.01955   0.157  0.694
-# # Residuals   43  5.343 0.12425  
-# 
-# summary(aov(Shannon ~ Sample, data = rich2))
-# #             Df Sum Sq Mean Sq
-# # Sample      46  5.411  0.1176
-# 
-# summary(aov(Shannon ~ bat.sp*Sample, data = rich2))
-# #             Df Sum Sq Mean Sq
-# # bat.sp       1  0.006 0.00591
-# # Sample      45  5.405 0.12012
-# 
-# kruskal.test(Shannon ~ bat.sp, data = rich2)
-# 	Kruskal-Wallis rank sum test
-# 
-# data:  Shannon by bat.sp
-# Kruskal-Wallis chi-squared = 0.93196, df = 1, p-value = 0.3344
+### Model predicitons 
 
-## Nothing shows up as significant. 
+interpol <- expand.grid(year = (unique(m1$data$year)),
+                        bat.sp = (unique(m1$data$bat.sp)),
+                        Sample = unique(m1$data$Sample))
 
-## Still worth plotting 
+interpol$Shannon<- predict(m1, interpol, type= "response",
+                       allow.new.levels= T)
 
-### Shannon diversity index
 
-sh <- estimate_richness(batsbugsy, split = TRUE, measures = "Shannon") %>% rownames_to_column("Sample")
-
-# Diversity within each sample 
-bbdf_sh <- left_join(bbdf, sh)
-bbdf_sh %>% ggplot() + 
-  geom_bar(aes(x = Sample, y = Shannon, color = bat.sp), stat = "identity")
-
-plot_richness(batsbugsy) 
-
-# M <- plot_richness(MMYS)
-# M
-# 
-# B <- plot_richness(MBRA)
-# B
-
+## Plot the predictions and the raw data 
 batcolors = c("#b3cde0", "#011f4b") 
 
-## Shannon diversity compared between the two bat species 
-plot_richness(batsbugsy, x="bat.sp", measures="Shannon")+
-  geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
+predictplot <- ggplot(interpol) +
+  geom_boxplot(aes(x = bat.sp, y= Shannon, fill = bat.sp), color = c("black", "gray")) + 
   theme_bw() +
   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
                       name = "Bat species") +
@@ -1319,83 +1321,29 @@ plot_richness(batsbugsy, x="bat.sp", measures="Shannon")+
   xlab("") +
   theme(text = element_text(size = 15)) +
   theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12))
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  ggtitle("Predicted data") + ylab("Alpha diversity (Shannon)")
+predictplot # And now they look the same:( 
 
-# For each sample 
-batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
-MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
-MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
 
-plot_richness(batsbugsy, x="sampleid", measures="Shannon")+
-  geom_boxplot(aes(fill = bat.sp), color = "gray") +
+
+## Shannon diversity compared between the two bat species 
+rawplot <- plot_richness(batsbugsy, x="bat.sp", measures="Shannon")+
+  geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
+  theme_bw() +
   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
                       name = "Bat species") +
-  facet_wrap(~bat.sp) +
-  theme_bw() # Useful to look at but not something I feel needs to be in the manuscript
+  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
+  xlab("") + ylab("Alpha diversity (Shannon)") +
+  theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) +
+  ggtitle("Raw data")
 
-# shannonB <- plot_richness(MBRA, x="sampleid", measures="Shannon")+
-#   geom_boxplot(fill = "#b3cde0", color = "gray", width = 2) +
-#   theme_bw() + 
-#   ggtitle("M. brandtii") + 
-#   theme(text = element_text(size = 15)) + xlab("")
-# shannonB
-# 
-# shannonM <- plot_richness(MMYS, x="sampleid", measures="Shannon")+
-#   geom_boxplot(fill = "#011f4b", color = "gray") +
-#   theme_bw() + 
-#   ggtitle("M. mystacinus") +
-#   theme(text = element_text(size = 15)) + xlab("")
-# shannonM
+rawplot
 
-
-
-
-
-
-## Simpson diversity 
-summary(aov(Simpson ~ bat.sp, data = rich2))
-#             Df   Sum Sq   Mean Sq F value Pr(>F)
-# bat.sp       1 0.000124 0.0001243    0.21  0.649
-# Residuals   45 0.026686 0.0005930  
-
-summary(aov(Simpson ~ bat.sp*year, data = rich2))
-#             Df   Sum Sq   Mean Sq F value Pr(>F)
-# bat.sp       1 0.000124 0.0001243   0.204  0.654
-# year         1 0.000404 0.0004036   0.661  0.421
-# bat.sp:year  1 0.000045 0.0000447   0.073  0.788
-# Residuals   43 0.026237 0.0006102 
-
-
-
-
-## Fisher diversity 
-summary(aov(Fisher ~ bat.sp, data = rich2))
-#             Df Sum Sq Mean Sq F value Pr(>F)
-# bat.sp       1   3.58   3.580   0.611  0.438
-# Residuals   45 263.52   5.856
-
-summary(aov(Fisher ~ bat.sp*year, data = rich2))
-#             Df Sum Sq Mean Sq F value Pr(>F)
-# bat.sp       1   3.58   3.580   0.605  0.441
-# year         1   0.01   0.010   0.002  0.967
-# bat.sp:year  1   9.11   9.114   1.540  0.221
-# Residuals   43 254.40   5.916 
-
-
-
-## Did not pass any tests of signficant difference so no need to go forward with a post-hoc test. 
-####################################################################
-#### Test for normal distribution using Shapiro-Wilk Normality test
-####################################################################
-# diversity <- estimate_richness(batsbugsy,
-#                                measures = c("Observed", "Chao1", "ACE",
-#                                           "Shannon", "Simpson", "InvSimpson",
-#                                           "Fisher"))
-# sample_div <- sample_data(diversity)
-# 
-# div_batsbugs <- merge_phyloseq(batsbugsy, sample_div)
-# 
-# shapiro_test_Shan <- shapiro.test(sample_data(div_batsbugs)$Shannon)
+cowplot::plot_grid(rawplot, predictplot)
 
 
 ```
@@ -1412,6 +1360,9 @@ pca <- batsbugsy %>%
    tax_transform(trans = "log", rank = "Family") %>% 
    dist_calc(dist = "bray") %>% 
    ord_calc("PCoA") %>% ord_plot(color = "bat.sp", size = 2) # can get pca scores 
+
+pca1 <- ordinate(batsbugsy, method = "PCoA", distance = "bray", trans = "log", k = 2)
+summary(pca1)
 
 ## For plotting
 
@@ -1502,42 +1453,89 @@ https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
-
-## use this data frame for modeling further: 
-
-#write.csv(bbdf1, file=file.path(output_today,"mbra_mmys_NMDS_Scores_diet.csv"))
-
 ### use NMDS1 as the response variable 
 library(nlme)
 
 # simplest model 
-m1 <- lme(PC2~bat.sp, random=~1|Sample, data=bbdf1)
-summary(m1) # species significant 
+mi <- lme(MDS1 ~ bat.sp, random=~1|sampleid, data=bbdf1)
+summary(mi) # species significant
+# Linear mixed-effects model fit by REML
+#   Data: bbdf1 
+#        AIC      BIC  logLik
+#   -5333342 -5333305 2666675
+# 
+# Random effects:
+#  Formula: ~1 | sampleid
+#         (Intercept)     Residual
+# StdDev:   0.7916966 2.076935e-14
+# 
+# Fixed effects:  MDS1 ~ bat.sp 
+#                  Value   Std.Error    DF   t-value p-value
+# (Intercept)  0.3284397 0.008340768 88642  39.37763       0
+# bat.spMMYS  -0.7752206 0.010270088    45 -75.48335       0
+#  Correlation: 
+#            (Intr)
+# bat.spMMYS -0.812
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -2.61928949 -0.81251429  0.01737284  0.49178496  2.61928949 
+# 
+# Number of Observations: 88689
+# Number of Groups: 47
 
-# +year
-m2 <- lme(PC2~bat.sp + year, random=~1|Sample,data=bbdf1)
-summary(m2) # species and year significant 
+
+
+# + year
+mii <- lme(MDS1~bat.sp + year, random=~1|sampleid, data=bbdf1)
+summary(mii) # species and year significant 
+# Linear mixed-effects model fit by REML
+#   Data: bbdf1 
+#        AIC      BIC  logLik
+#   -5336306 -5336259 2668158
+# 
+# Random effects:
+#  Formula: ~1 | sampleid
+#         (Intercept)     Residual
+# StdDev:   0.8085271 2.042184e-14
+# 
+# Fixed effects:  MDS1 ~ bat.sp + year 
+#                  Value   Std.Error    DF   t-value p-value
+# (Intercept)  0.5465725 0.009105451 88642  60.02696       0
+# bat.spMMYS  -0.8523200 0.010195013    44 -83.60165       0
+# year        -0.0000879 0.000001595    44 -55.14862       0
+#  Correlation: 
+#            (Intr) b.MMYS
+# bat.spMMYS -0.784       
+# year       -0.434  0.137
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -2.51163939 -0.73392060 -0.05844183  0.64965564  2.81608053 
+# 
+# Number of Observations: 88689
+# Number of Groups: 47
 
 # species*year interaction 
-m3 <- lme(PC2~bat.sp + bat.sp*year, random=~1|Sample, data=bbdf1)
-summary(m3)
+miii <- lme(MDS1~bat.sp + bat.sp*year, random=~1|sampleid, data=bbdf1)
+summary(miii)
 
 # Linear mixed-effects model fit by REML
 #   Data: bbdf1 
 #        AIC      BIC  logLik
-#   -5298053 -5297997 2649032
+#   -5340926 -5340870 2670469
 # 
 # Random effects:
-#  Formula: ~1 | Sample
-#         (Intercept)     Residual
-# StdDev:    1.321414 2.532995e-14
+#  Formula: ~1 | sampleid
+#         (Intercept)    Residual
+# StdDev:   0.8090302 1.98937e-14
 # 
-# Fixed effects:  PC2 ~ bat.sp + bat.sp * year 
-#                      Value   Std.Error    DF   t-value p-value
-# (Intercept)     -0.5024141 0.013661466 88642 -36.77600       0
-# bat.spMMYS       0.5267866 0.015945439    43  33.03682       0
-# year            -0.0001545 0.000003675    43 -42.04283       0
-# bat.spMMYS:year  0.0001102 0.000004361    43  25.28215       0
+# Fixed effects:  MDS1 ~ bat.sp + bat.sp * year 
+#                      Value   Std.Error    DF    t-value p-value
+# (Intercept)      0.9632098 0.010727067 88642   89.79247       0
+# bat.spMMYS      -1.3789148 0.012520505    43 -110.13252       0
+# year            -0.0002559 0.000002886    43  -88.67867       0
+# bat.spMMYS:year  0.0002365 0.000003425    43   69.06416       0
 #  Correlation: 
 #                 (Intr) bt.MMYS year  
 # bat.spMMYS      -0.857               
@@ -1545,11 +1543,99 @@ summary(m3)
 # bat.spMMYS:year  0.562 -0.609  -0.843
 # 
 # Standardized Within-Group Residuals:
-#         Min          Q1         Med          Q3         Max 
-# -2.17399036 -0.59171109 -0.01314914  0.41200624  3.57656478 
+#        Min         Q1        Med         Q3        Max 
+# -2.7122580 -0.8761821  0.1046396  0.5497066  2.7680658 
 # 
 # Number of Observations: 88689
 # Number of Groups: 47 
+
+miv <- lme(MDS1~bat.sp + bat.sp*year + 
+           bat.sp*Order, 
+           random=~1|sampleid, data=bbdf1)
+summary(miv) ## massive ouput, here is just the top part 
+
+# Linear mixed-effects model fit by REML
+#   Data: bbdf1 
+#        AIC      BIC  logLik
+#   -5339681 -5339456 2669865
+# 
+# Random effects:
+#  Formula: ~1 | sampleid
+#         (Intercept)     Residual
+# StdDev:   0.8090342 1.989566e-14
+# 
+# Fixed effects:  MDS1 ~ bat.sp + bat.sp * year + bat.sp * Order 
+#                                  Value   Std.Error    DF    t-value p-value
+# (Intercept)                  0.9632125 0.010728424 88624   89.78136  0.0000
+# bat.spMMYS                  -1.3789047 0.012522160    43 -110.11716  0.0000 *
+# year                        -0.0002559 0.000002887    43  -88.65406  0.0000 *
+# OrderColeoptera              0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderDiptera                 0.0000000 0.000000000 88624   -0.01357  0.9892
+# OrderHemiptera               0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderHymenoptera             0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderLepidoptera             0.0000000 0.000000000 88624    0.00181  0.9986
+# OrderNeuroptera              0.0000000 0.000000000 88624    0.17185  0.8636
+# OrderOrthoptera              0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderPsocodea                0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderTrichoptera             0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:year              0.0002365 0.000003425    43   69.04427  0.0000 *
+
+
+
+mv <- lme(MDS1~ bat.sp + 
+            bat.sp*year + 
+            year + Order +
+           bat.sp*Order, 
+           random=~1|sampleid, data=bbdf1)
+
+summary(mv)
+# Linear mixed-effects model fit by REML
+#   Data: bbdf1 
+#        AIC      BIC  logLik
+#   -5339681 -5339456 2669865
+# 
+# Random effects:
+#  Formula: ~1 | sampleid
+#         (Intercept)     Residual
+# StdDev:   0.8090342 1.989566e-14
+# 
+# Fixed effects:  MDS1 ~ bat.sp + bat.sp * year + year + Order + bat.sp * Order 
+#                                  Value   Std.Error    DF    t-value p-value
+# (Intercept)                  0.9632125 0.010728424 88624   89.78136  0.0000
+# bat.spMMYS                  -1.3789047 0.012522160    43 -110.11716  0.0000
+# year                        -0.0002559 0.000002887    43  -88.65406  0.0000
+# OrderColeoptera              0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderDiptera                 0.0000000 0.000000000 88624   -0.01357  0.9892
+# OrderHemiptera               0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderHymenoptera             0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderLepidoptera             0.0000000 0.000000000 88624    0.00181  0.9986
+# OrderNeuroptera              0.0000000 0.000000000 88624    0.17185  0.8636
+# OrderOrthoptera              0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderPsocodea                0.0000000 0.000000000 88624    0.00000  1.0000
+# OrderTrichoptera             0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:year              0.0002365 0.000003425    43   69.04427  0.0000
+# bat.spMMYS:OrderColeoptera   0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:OrderDiptera      0.0000000 0.000000000 88624    0.02493  0.9801
+# bat.spMMYS:OrderHemiptera    0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:OrderHymenoptera  0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:OrderLepidoptera  0.0000000 0.000000000 88624   -0.02263  0.9819
+# bat.spMMYS:OrderNeuroptera   0.0000000 0.000000000 88624   -0.15283  0.8785
+# bat.spMMYS:OrderOrthoptera   0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:OrderPsocodea     0.0000000 0.000000000 88624    0.00000  1.0000
+# bat.spMMYS:OrderTrichoptera  0.0000000 0.000000000 88624    0.00000  1.0000
+
+
+mvi<- lme(MDS1~ bat.sp + 
+            bat.sp*year + 
+            year + Family*bat.sp,
+           random=~1|sampleid, data=bbdf1)
+
+summary(mvi) # This most closely resemebles the ordination figure so I will use this for now. 
+
+anova(miV, mV) # ? weird that they are the same. 
+#   Model df      AIC      BIC  logLik
+# miV     1 24 -5339681 -5339456 2669865
+# mV      2 24 -5339681 -5339456 2669865
 
 
 ## Ask Katrine what the best way is to compare model selection for these kinds of NMDS models... 
@@ -1566,13 +1652,16 @@ plot(allEffects(m1), type = "response")
 plot(allEffects(m2), type = "response")
 plot(allEffects(m3), type = "response")
 
+plot(allEffects(miv), type = "response")
+plot(allEffects(mv), type = "response")
+
 # Very little difference between years 
 
 # https://rdrr.io/cran/sjPlot/f/vignettes/plot_marginal_effects.Rmd
 
 #plotting marginal effects
 #plot_model(mod1, type = "pred", terms = "bat.sp")
-plot_model(m3, type = "eff", terms = "bat.sp")
+# plot_model(m3, type = "eff", terms = "bat.sp")
 
 ```
 
