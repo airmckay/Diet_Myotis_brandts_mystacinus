@@ -212,61 +212,61 @@ When I plot relative abundance aggregated for taxa Family and compare between th
 
 ### Family 
 
-bb2.fam <- aggregate_top_taxa2(batsbugs2, "Family", top = 100)
-
-plot.composition.CountAbun <- plot_composition(bb2.fam) + 
-  theme_bw() +
-  ggtitle("Top 70 famillies") + 
-  facet_wrap(~ bb2.fam@sam_data$bat.sp) +
-  theme(legend.position = "bottom") 
-  
-plot.composition.CountAbun
-
-
-# Abundance 
-
-bb.fam.rel <- microbiome::transform(bb2.fam, "compositional")
-
-plot_bar(bb.fam.rel, x="bat.sp", fill = "Family")+ xlab(NULL) + geom_bar(stat="identity") 
-
-plot_composition(bb.fam.rel, fill = "family", average_by = "bat.sp") + 
-  labs( x = "Bat Species", y = "Relative abundance", title = "Relative Abundance of Prey Item by Family") 
-
-
-#### Order
-
-bb2.order <- aggregate_top_taxa2(batsbugs2, "Order", top = 45) 
-
-plot.composition.CountAbun <- plot_composition(bb2.order) + 
-  theme_bw() + ggtitle("Top 45 orders") + facet_wrap(~ bb2.order@sam_data$bat.sp) +
-  theme(legend.position = "bottom") 
-  
-plot.composition.CountAbun
-
-
-#Make relative abundance 
-
-
-bb.order.rel <- transform(bb2.order, "compositional")
-
-plot_bar(bb.order.rel, x="bat.sp", fill = "Order")+ xlab(NULL) + 
-  geom_bar(stat="identity") + 
-  labs( y = "Relative abundance",
-  title = "Relative Abundance of Prey Item by Order")  +
-  theme(legend.position = "bottom") +
-  theme_bw()
-
-
-
-plot_composition(bb.order.rel, fill = "Order", average_by = "bat.sp") + 
-  labs( x = "Bat Species", y = "Relative abundance", 
-        title = "Relative Abundance of Prey Item by Order") +
-  theme_bw()
-
-plot.composition.relAbun <- plot_composition(bb.order.rel, sample.sort = "bat.sp") + 
-  facet_wrap(~ bb.order.rel@sam_data$bat.sp) +
-  theme_bw() + theme(text = element_text(size = 20))   
-print(plot.composition.relAbun)
+# bb2.fam <- aggregate_top_taxa2(batsbugs2, "Family", top = 100)
+# 
+# plot.composition.CountAbun <- plot_composition(bb2.fam) + 
+#   theme_bw() +
+#   ggtitle("Top 70 famillies") + 
+#   facet_wrap(~ bb2.fam@sam_data$bat.sp) +
+#   theme(legend.position = "bottom") 
+#   
+# plot.composition.CountAbun
+# 
+# 
+# # Abundance 
+# 
+# bb.fam.rel <- microbiome::transform(bb2.fam, "compositional")
+# 
+# plot_bar(bb.fam.rel, x="bat.sp", fill = "Family")+ xlab(NULL) + geom_bar(stat="identity") 
+# 
+# plot_composition(bb.fam.rel, fill = "family", average_by = "bat.sp") + 
+#   labs( x = "Bat Species", y = "Relative abundance", title = "Relative Abundance of Prey Item by Family") 
+# 
+# 
+# #### Order
+# 
+# bb2.order <- aggregate_top_taxa2(batsbugs2, "Order", top = 45) 
+# 
+# plot.composition.CountAbun <- plot_composition(bb2.order) + 
+#   theme_bw() + ggtitle("Top 45 orders") + facet_wrap(~ bb2.order@sam_data$bat.sp) +
+#   theme(legend.position = "bottom") 
+#   
+# plot.composition.CountAbun
+# 
+# 
+# #Make relative abundance 
+# 
+# 
+# bb.order.rel <- transform(bb2.order, "compositional")
+# 
+# plot_bar(bb.order.rel, x="bat.sp", fill = "Order")+ xlab(NULL) + 
+#   geom_bar(stat="identity") + 
+#   labs( y = "Relative abundance",
+#   title = "Relative Abundance of Prey Item by Order")  +
+#   theme(legend.position = "bottom") +
+#   theme_bw()
+# 
+# 
+# 
+# plot_composition(bb.order.rel, fill = "Order", average_by = "bat.sp") + 
+#   labs( x = "Bat Species", y = "Relative abundance", 
+#         title = "Relative Abundance of Prey Item by Order") +
+#   theme_bw()
+# 
+# plot.composition.relAbun <- plot_composition(bb.order.rel, sample.sort = "bat.sp") + 
+#   facet_wrap(~ bb.order.rel@sam_data$bat.sp) +
+#   theme_bw() + theme(text = element_text(size = 20))   
+# print(plot.composition.relAbun)
 
 
 ```
@@ -402,20 +402,20 @@ new_physeq1 # These are the unknowns
 # tax_table()   Taxonomy Table:     [ 411 taxa by 7 taxonomic ranks ]:
 # taxa are rows
 
-plot_taxa_prevalence(new_physeq1, "Family")
-
-pB <- plot_bar(new_physeq, x = "bat.sp", fill = "Genus") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
-pB
-
-pB1 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Genus") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
-pB1
-
-# Large proportion of the unknowns were Ula spp. 
-pB2 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Species") + 
-  xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
-pB2
+# microbiome::plot_taxa_prevalence(new_physeq1, "Family")
+# 
+# pB <- plot_bar(new_physeq, x = "bat.sp", fill = "Genus") + 
+#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+# pB
+# 
+# pB1 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Genus") + 
+#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+# pB1
+# 
+# # Large proportion of the unknowns were Ula spp. 
+# pB2 <- plot_bar(new_physeq1, x = "bat.sp", fill = "Species") + 
+#   xlab(NULL) + geom_bar(stat="identity") + theme_bw() 
+# pB2
 
 # what were the OTUs we changed in the end? 
 
@@ -448,6 +448,8 @@ rownames(taxmat) <- taxmat[,1]
 taxmat <- taxmat[,-1]
 TAX = tax_table(taxmat)
 
+
+## For reporting in the results section 
 batsbugsy <- merge_phyloseq(TAX, sample_data(batsbugsx), otu_table(batsbugsx))
 batsbugsy
 # phyloseq-class experiment-level object
@@ -465,6 +467,8 @@ quantile(colSums(otu_table(batsbugsy)))
 summary(colSums(otu_table(batsbugsy)))
    # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
    # 3857    3934    3950    3949    3960    4000 
+
+
 # Quick check 
 plot_bar(batsbugsy, x = "bat.sp", fill = "Order") +
   xlab(NULL) + geom_bar(stat="identity") + theme_bw() + 
@@ -552,8 +556,6 @@ topall <- batsbugsz %>% arrange(desc(Prevalence)) %>%
   group_by(Species) %>% dplyr::summarize(TotalAbundance= sum(TotalAbundance)) %>% 
   mutate(Predator = "Pooled") %>% arrange(desc(TotalAbundance)) %>%  slice(1:10)
 kable(topall) %>% kable_minimal()
-
-
 
 
 ######################################################
@@ -677,9 +679,6 @@ TaxOrder <- batsbugszM %>% dplyr::select(Species, Order) %>% distinct()
 topallM <- left_join(topallM, TaxOrder)
 kable(topallM) %>% kable_minimal()
 
-# or
-
-top_taxa(batsbugsy, n = 20) 
 
 ######################################################
 
@@ -723,6 +722,7 @@ batsbugsy
 
 
 ## ALTERNATIVE 
+- With this approach the process of calcultaing relative abundance is a bit more streamlined but there are repeated taxa in some cases because multiple ASVs/OTUs are assocaited with the same taxa...
 ```{r}
 
 ## MBRA
@@ -861,7 +861,7 @@ summary(prey3)
   
 ## THIS goes into the paper   
 # Now the families are arranged by Order!! 
-
+library(MetBrewer)
 p <-  ggplot() + 
   geom_count(data = prey3, aes(x = BatSpecies, y = Family, size = FamAbun, color = Order), alpha = 0.9,) + 
   scale_size_continuous(range = c(5, 12)) +
@@ -879,7 +879,7 @@ p <-  ggplot() +
   geom_jitter()
 p + theme(legend.title = element_blank()) 
 
-## Alternatively could make this into a prop bar?
+## here it is just presence and absence 
 
 p <-  ggplot() + 
   geom_point(data = prey3, aes(x = BatSpecies, y = Family, color = Order), size = 6) + 
@@ -1148,6 +1148,260 @@ batsbugsy %>%
 
 ```
 
+## Shannon and Simpson diversity 
+
+Shannon: How difficult it is to predict the identity of a randomly chosen individual.
+Simpson: The probability that two randomly chosen individuals are the same species
+Fisher: This measures the evenness with which individuals are divided among the taxa present
+
+```{r}
+
+
+## Alpha diversity - diversity between communities 
+rich <- estimate_richness(batsbugsy)
+head(rich)
+#      Observed Chao1  se.chao1      ACE    se.ACE  Shannon   Simpson InvSimpson    Fisher
+# X10B       33    33 0.0000000      NaN       NaN 3.202442 0.9484766   19.40864  4.930898
+# X11B       37    37 0.0000000 37.00000 0.9863939 3.146580 0.9421180   17.27653  5.642515
+# X12B       65    65 0.1240347 65.67607 2.5055369 3.665782 0.9647341   28.35602 11.034699
+# X13B       45    45 0.0000000      NaN       NaN 3.260423 0.9449219   18.15604  7.120491
+# X14B       43    43 0.0000000 43.00000 0.9883037 3.404255 0.9568050   23.15084  6.752266
+# X15B       58    58 0.4956709 59.08000 1.6013106 3.708866 0.9691568   32.42208  9.645112
+
+# pairwise.wilcox.test(rich$Observed, sample_data(batsbugsy)$bat.sp)
+# # 	Pairwise comparisons using Wilcoxon rank sum test with continuity correction 
+# # 
+# # data:  rich$Observed and sample_data(batsbugsy)$bat.sp 
+# # 
+# #      MBRA
+# # MMYS 0.37
+# # 
+# # P value adjustment method: holm 
+# # Warning message:
+# # In wilcox.test.default(xi, xj, paired = paired, ...) :
+# #   cannot compute exact p-value with ties
+# 
+# pairwise.wilcox.test(rich$Shannon, sample_data(batsbugsy)$bat.sp)
+# 
+# # 	Pairwise comparisons using Wilcoxon rank sum exact test 
+# # 
+# # data:  rich$Shannon and sample_data(batsbugsy)$bat.sp 
+# # 
+# #      MBRA
+# # MMYS 0.34
+# # 
+# # P value adjustment method: holm 
+# 
+# pairwise.wilcox.test(rich$Simpson, sample_data(batsbugsy)$bat.sp)
+# # 	Pairwise comparisons using Wilcoxon rank sum exact test 
+# # 
+# # data:  rich$Simpson and sample_data(batsbugsy)$bat.sp 
+# # 
+# #      MBRA
+# # MMYS 0.4 
+# # 
+# # P value adjustment method: holm
+# 
+# pairwise.wilcox.test(rich$Fisher, sample_data(batsbugsy)$bat.sp)
+# # 	Pairwise comparisons using Wilcoxon rank sum exact test 
+# 
+# data:  rich$Simpson and sample_data(batsbugsy)$bat.sp 
+# 
+#      MBRA
+# MMYS 0.4 
+# 
+# P value adjustment method: holm
+
+## t-test and ANOVA
+
+rich1 <- rich %>% rownames_to_column("Sample") 
+rich1$Sample <- gsub("X", "", rich1$Sample)
+
+samplemap <- batsbugsz %>% dplyr::select(Sample, bat.sp, sex, year, date) %>% distinct() #metadata for each sample
+rich2 <- left_join(rich1, samplemap) # Each samples metadata and alpha diversity measurements 
+
+hist(rich2$Shannon, main="Shannon index", xlab="") 
+# this is not normally distributed so actually no AOV or Tukey tests should not be applied. 
+# Instead I can run a glmm to test
+
+library(nlme)
+m1 <- lme(Shannon ~ bat.sp*year, random=~1|Sample, data=rich2)
+summary(m1) #
+# Linear mixed-effects model fit by REML
+#   Data: rich2 
+#        AIC      BIC    logLik
+#   53.65551 64.22271 -20.82775
+# 
+# Random effects:
+#  Formula: ~1 | Sample
+#         (Intercept)  Residual
+# StdDev:   0.3300256 0.1238386
+# 
+# Fixed effects:  Shannon ~ bat.sp * year 
+#                     Value Std.Error DF    t-value p-value
+# (Intercept)      -3.80903  410.6388 43 -0.0092759  0.9926
+# bat.spMMYS      193.23219  487.2329 43  0.3965910  0.6936
+# year              0.00361    0.2035 43  0.0177207  0.9859
+# bat.spMMYS:year  -0.09578    0.2415 43 -0.3966577  0.6936
+#  Correlation: 
+#                 (Intr) bt.MMYS year  
+# bat.spMMYS      -0.843               
+# year            -1.000  0.843        
+# bat.spMMYS:year  0.843 -1.000  -0.843
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -1.41804764 -0.17744410  0.04025917  0.24637826  0.40965665 
+# 
+# Number of Observations: 47
+# Number of Groups: 47 
+
+# 
+# ## Shannon diversity 
+# summary(aov(Shannon ~ bat.sp, data = rich2))
+# #             Df Sum Sq Mean Sq F value Pr(>F)
+# # bat.sp       1  0.006 0.00591   0.049  0.825
+# # Residuals   45  5.405 0.12012  
+# 
+# summary(aov(Shannon ~ bat.sp*year, data = rich2))
+# 
+# #             Df Sum Sq Mean Sq F value Pr(>F)
+# # bat.sp       1  0.006 0.00591   0.048  0.828
+# # year         1  0.043 0.04298   0.346  0.560
+# # bat.sp:year  1  0.020 0.01955   0.157  0.694
+# # Residuals   43  5.343 0.12425  
+# 
+# summary(aov(Shannon ~ Sample, data = rich2))
+# #             Df Sum Sq Mean Sq
+# # Sample      46  5.411  0.1176
+# 
+# summary(aov(Shannon ~ bat.sp*Sample, data = rich2))
+# #             Df Sum Sq Mean Sq
+# # bat.sp       1  0.006 0.00591
+# # Sample      45  5.405 0.12012
+# 
+# kruskal.test(Shannon ~ bat.sp, data = rich2)
+# 	Kruskal-Wallis rank sum test
+# 
+# data:  Shannon by bat.sp
+# Kruskal-Wallis chi-squared = 0.93196, df = 1, p-value = 0.3344
+
+## Nothing shows up as significant. 
+
+## Still worth plotting 
+
+### Shannon diversity index
+
+sh <- estimate_richness(batsbugsy, split = TRUE, measures = "Shannon") %>% rownames_to_column("Sample")
+
+# Diversity within each sample 
+bbdf_sh <- left_join(bbdf, sh)
+bbdf_sh %>% ggplot() + 
+  geom_bar(aes(x = Sample, y = Shannon, color = bat.sp), stat = "identity")
+
+plot_richness(batsbugsy) 
+
+# M <- plot_richness(MMYS)
+# M
+# 
+# B <- plot_richness(MBRA)
+# B
+
+batcolors = c("#b3cde0", "#011f4b") 
+
+## Shannon diversity compared between the two bat species 
+plot_richness(batsbugsy, x="bat.sp", measures="Shannon")+
+  geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
+  xlab("") +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12))
+
+# For each sample 
+batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
+MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
+MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
+
+plot_richness(batsbugsy, x="sampleid", measures="Shannon")+
+  geom_boxplot(aes(fill = bat.sp), color = "gray") +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  facet_wrap(~bat.sp) +
+  theme_bw() # Useful to look at but not something I feel needs to be in the manuscript
+
+# shannonB <- plot_richness(MBRA, x="sampleid", measures="Shannon")+
+#   geom_boxplot(fill = "#b3cde0", color = "gray", width = 2) +
+#   theme_bw() + 
+#   ggtitle("M. brandtii") + 
+#   theme(text = element_text(size = 15)) + xlab("")
+# shannonB
+# 
+# shannonM <- plot_richness(MMYS, x="sampleid", measures="Shannon")+
+#   geom_boxplot(fill = "#011f4b", color = "gray") +
+#   theme_bw() + 
+#   ggtitle("M. mystacinus") +
+#   theme(text = element_text(size = 15)) + xlab("")
+# shannonM
+
+
+
+
+
+
+## Simpson diversity 
+summary(aov(Simpson ~ bat.sp, data = rich2))
+#             Df   Sum Sq   Mean Sq F value Pr(>F)
+# bat.sp       1 0.000124 0.0001243    0.21  0.649
+# Residuals   45 0.026686 0.0005930  
+
+summary(aov(Simpson ~ bat.sp*year, data = rich2))
+#             Df   Sum Sq   Mean Sq F value Pr(>F)
+# bat.sp       1 0.000124 0.0001243   0.204  0.654
+# year         1 0.000404 0.0004036   0.661  0.421
+# bat.sp:year  1 0.000045 0.0000447   0.073  0.788
+# Residuals   43 0.026237 0.0006102 
+
+
+
+
+## Fisher diversity 
+summary(aov(Fisher ~ bat.sp, data = rich2))
+#             Df Sum Sq Mean Sq F value Pr(>F)
+# bat.sp       1   3.58   3.580   0.611  0.438
+# Residuals   45 263.52   5.856
+
+summary(aov(Fisher ~ bat.sp*year, data = rich2))
+#             Df Sum Sq Mean Sq F value Pr(>F)
+# bat.sp       1   3.58   3.580   0.605  0.441
+# year         1   0.01   0.010   0.002  0.967
+# bat.sp:year  1   9.11   9.114   1.540  0.221
+# Residuals   43 254.40   5.916 
+
+
+
+## Did not pass any tests of signficant difference so no need to go forward with a post-hoc test. 
+####################################################################
+#### Test for normal distribution using Shapiro-Wilk Normality test
+####################################################################
+# diversity <- estimate_richness(batsbugsy,
+#                                measures = c("Observed", "Chao1", "ACE",
+#                                           "Shannon", "Simpson", "InvSimpson",
+#                                           "Fisher"))
+# sample_div <- sample_data(diversity)
+# 
+# div_batsbugs <- merge_phyloseq(batsbugsy, sample_div)
+# 
+# shapiro_test_Shan <- shapiro.test(sample_data(div_batsbugs)$Shannon)
+
+
+```
+
+
+
 
 ## Different ordination approach 
 https://david-barnett.github.io/microViz/articles/web-only/ordination.html
@@ -1155,13 +1409,32 @@ https://david-barnett.github.io/microViz/articles/web-only/ordination.html
 ```{r}
 
 pca <- batsbugsy %>% 
-   tax_transform(trans = "log10", rank = "Order") %>% 
+   tax_transform(trans = "log", rank = "Family") %>% 
    dist_calc(dist = "bray") %>% 
    ord_calc("PCoA") %>% ord_plot(color = "bat.sp", size = 2) # can get pca scores 
 
-batcolors = c("#b3cde0", "#011f4b")
+## For plotting
 
-### Pcoa - Bray - Curtis, log10 transformed
+batcolors = c("#b3cde0", "#011f4b") 
+          #     MBRA        MMYS 
+
+### Pcoa - Bray - Curtis, log10 transformed - use this figure for the manuscript 
+batsbugsy %>%
+  tax_transform("log", rank = "Family") %>%
+  dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
+  ord_calc("PCoA") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
+
+
+### Pcoa - Bray - Curtis, not transformed 
 batsbugsy %>%
   tax_transform("identity", rank = "Family") %>%
   dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
@@ -1176,7 +1449,7 @@ batsbugsy %>%
   ggside::theme_ggside_void() + 
   theme(legend.position = "none")
 
-## This is the figure currently in the manuscript 
+## 
 batsbugsy %>%
   tax_transform("log10", rank = "Order") %>%
   dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
@@ -1190,6 +1463,10 @@ batsbugsy %>%
   ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
   ggside::theme_ggside_void() + 
   theme(legend.position = "bottom")
+
+#Warning message:
+# In microbiome::transform(otu, transform = trans, target = "OTU",  :
+#   OTU table contains zeroes. Using log10(1 + x) transform.
 
 ### Pcoa - Bray - curtis, relative abundance 
 batsbugsy %>%
@@ -1206,8 +1483,9 @@ batsbugsy %>%
   ggside::theme_ggside_void() + 
   theme(legend.position = "none")
 
-
+###########################################
 ## combine pca scores with batsbugs object
+###########################################
 
 pcadf <- pca$data
 
@@ -1224,34 +1502,6 @@ https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics
 
 ```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
 
-### Shannon diversity index
-
-sh <- estimate_richness(batsbugsy, split = TRUE, measures = "Shannon") %>% rownames_to_column("Sample")
-
-# Diversity within each sample 
-bbdf_sh <- left_join(bbdf, sh)
-bbdf_sh %>% ggplot() + 
-  geom_bar(aes(x = Sample, y = Shannon, color = bat.sp), stat = "identity")
-
-plot_richness(batsbugsy) 
-
-M <- plot_richness(MMYS)
-M
-
-B <- plot_richness(MBRA)
-B
-
-
-## Shannon diversity compared between the two bat species 
-plot_richness(batsbugsy, x="bat.sp", measures="Shannon", color = "bat.sp")+
-  geom_boxplot() + 
-  theme_bw() +
-  theme(legend.position="none", axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12))
-
-# For each sample 
-batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
-plot_richness(batsbugsy, x="sampleid", measures="Shannon", color = "bat.sp")+
-  geom_boxplot(alpha=0.6) 
 
 ## use this data frame for modeling further: 
 
