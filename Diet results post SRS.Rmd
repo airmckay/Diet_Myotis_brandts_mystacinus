@@ -61,6 +61,8 @@ library(microbiome)
 library(microbiomeutilities)
 library(qiime2R)
 library(netresponse)
+library(speedyseq)
+
 
 ##############################################################
 
@@ -1154,6 +1156,11 @@ Shannon: How difficult it is to predict the identity of a randomly chosen indivi
 Simpson: The probability that two randomly chosen individuals are the same species
 Fisher: This measures the evenness with which individuals are divided among the taxa present
 
+
+### Note for Franz ###
+
+# I have seen your feedback in the manuscript about using different methods diversity indices and for ordination. I will take your suggestions on board and am grateful you brought up your concerns; I've just not had the opportunity to follow through just yet. 
+
 ```{r}
 sh <- estimate_richness(batsbugsy, split = TRUE, measures = "Shannon") %>% rownames_to_column("Sample")
 
@@ -1671,6 +1678,5 @@ plot(allEffects(mv), type = "response")
 - Proper diversity index plots / table 
 - Pros / cons of PCA, Pcoa and NMDS? 
 - Model predictions of NLME model 
-- Shannon diversity index, within species and between species 
 
 
