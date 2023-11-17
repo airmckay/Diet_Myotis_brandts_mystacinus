@@ -170,12 +170,26 @@ quantile(colSums(otu_table(batsbugs1)))
 
 sort(colSums(otu_table(batsbugs1)))
 
-batsbugs2<-prune_samples(colSums(otu_table(batsbugs1))>=600,batsbugs1) 
+# Two samples need to be removed that were identified as non-target bat species from the bat species genetic analyses 
+batsbugs2<-subset_samples(batsbugs1, sample.nr != "2" & sample.nr != "46")
 batsbugs2 # none lost 
 # phyloseq-class experiment-level object
-# otu_table()   OTU Table:         [ 1887 taxa and 47 samples ]
-# sample_data() Sample Data:       [ 47 samples by 9 sample variables ]
+# otu_table()   OTU Table:         [ 1887 taxa and 45 samples ]
+# sample_data() Sample Data:       [ 45 samples by 9 sample variables ]
 # tax_table()   Taxonomy Table:    [ 1887 taxa by 7 taxonomic ranks ]
+
+
+### Notes on metadata 17.11.2023 
+# One sample (sample 34, Marie) was identified as M. mystacinus in the field and was also found to be M. mystacinus genetically but the metadata here does not reflect that (labeling error). 
+
+# I manually edited the metadata file "bat-metadata_clean.tsv" to correct this. 
+
+# While I was reviewing the metadata file, I found another typo where sample 35 should be Myotis brandtii but has been described as Myotis mystacinus and corrected this as well. 
+
+
+
+
+
 
 #removed 5 samples, check that this worked: 
 sort(colSums(otu_table(batsbugs2)))
