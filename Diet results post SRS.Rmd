@@ -187,15 +187,11 @@ batsbugs2 # none lost
 # While I was reviewing the metadata file, I found another typo where sample 35 should be Myotis brandtii but has been described as Myotis mystacinus and corrected this as well. 
 
 
-
-
-
-
 #removed 5 samples, check that this worked: 
 sort(colSums(otu_table(batsbugs2)))
 quantile(colSums(otu_table(batsbugs2)))
 #     0%    25%    50%    75%   100% 
-# 3857.0 3934.0 3950.0 3960.5 4000.0 
+#   3857   3934   3950   3961    4000  
 
 ## Visualize to check: 
 # Compare abundance across of different order of OTUs betwween bat species  
@@ -376,28 +372,24 @@ my_subset <- subset(otu_table(batsbugsx), rownames(otu_table(batsbugsx)) %in% un
 
 new_physeq <- merge_phyloseq(my_subset, tax_table(batsbugsx), sample_data(batsbugsx))
 new_physeq
-# phyloseq-class experiment-level object
-# otu_table()   OTU Table:          [ 411 taxa and 47 samples ]:
-# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
-# tax_table()   Taxonomy Table:     [ 411 taxa by 7 taxonomic ranks ]:
-# taxa are rows
+# otu_table()   OTU Table:         [ 411 taxa and 45 samples ]
+# sample_data() Sample Data:       [ 45 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 411 taxa by 7 taxonomic ranks ]
 
 # How many of these are Diptera? 
 dip_new <- subset_taxa(new_physeq, Order == "Diptera")
 dip_new 
 # phyloseq-class experiment-level object
-# otu_table()   OTU Table:          [ 380 taxa and 47 samples ]:
-# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
-# tax_table()   Taxonomy Table:     [ 380 taxa by 7 taxonomic ranks ]:
-# taxa are rows
-
+# otu_table()   OTU Table:         [ 380 taxa and 45 samples ]
+# sample_data() Sample Data:       [ 45 samples by 9 sample variables ]
+# tax_table()   Taxonomy Table:    [ 380 taxa by 7 taxonomic ranks ]
 ## 380 taxa will be assigned to Ula spp. 
 
 unk.prey <- ps_melt(new_physeq) %>% mutate(Order = factor(Order)) %>% distinct()
 summary(unk.prey$Order) 
     # Araneae     Diptera Hymenoptera Lepidoptera  Neuroptera 
-    #     376       17860         141         893          47 
-# I will be able to assigned 17860 reads of these OTUs to Ula species but will leave the rest as unknown orders. 
+    #   360       17100         135         855          45 
+# I will be able to assigned 17100 reads of these OTUs to Ula species but will leave the rest as unknown orders. 
 
 new_physeq1 <- new_physeq %>% 
   mutate_tax_table(
@@ -413,8 +405,8 @@ new_physeq1 <- new_physeq %>%
 
 new_physeq1 # These are the unknowns 
 # phyloseq-class experiment-level object
-# otu_table()   OTU Table:          [ 411 taxa and 47 samples ]:
-# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# otu_table()   OTU Table:          [ 411 taxa and 45 samples ]:
+# sample_data() Sample Data:        [ 45 samples by 9 sample variables ]:
 # tax_table()   Taxonomy Table:     [ 411 taxa by 7 taxonomic ranks ]:
 # taxa are rows
 
@@ -469,8 +461,8 @@ TAX = tax_table(taxmat)
 batsbugsy <- merge_phyloseq(TAX, sample_data(batsbugsx), otu_table(batsbugsx))
 batsbugsy
 # phyloseq-class experiment-level object
-# otu_table()   OTU Table:          [ 1887 taxa and 47 samples ]:
-# sample_data() Sample Data:        [ 47 samples by 9 sample variables ]:
+# otu_table()   OTU Table:          [ 1887 taxa and 45 samples ]:
+# sample_data() Sample Data:        [ 45 samples by 9 sample variables ]:
 # tax_table()   Taxonomy Table:     [ 1887 taxa by 7 taxonomic ranks ]:
 # taxa are rows
 
@@ -482,7 +474,7 @@ sort(colSums(otu_table(batsbugsy)))
 quantile(colSums(otu_table(batsbugsy)))
 summary(colSums(otu_table(batsbugsy)))
    # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-   # 3857    3934    3950    3949    3960    4000 
+   # 3857    3934    3950    3949    3961    4000 
 
 
 # Quick check 
@@ -496,13 +488,13 @@ batsbugsy <- batsbugsy%>%
   unknowns = c("NA"),
   sep = " ", anon_unique = TRUE,
   suffix_rank = "classified") # Now any unknown family is labeled by its Order 
-checkthis <- ps_melt(batsbugsy) # That worked 
+checkthis <- ps_melt(batsbugsy) # That worked  #84915 obs 
 
 ## Export this phyloseq object so you dont need to recreate it every time!
 
-# saveRDS(batsbugsy, file = file.path(output_today, "BatsBugs_Nasfixed.RDS")) 
+#saveRDS(batsbugsy, file = file.path(output_today, "BatsBugs_Nasfixed.RDS")) #17.11.2023
 # output_today
-#testx <- readRDS("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-26/BatsBugs_Nasfixed.RDS") # that works!! 
+
 
 
 ```
@@ -965,26 +957,6 @@ bbdf <- psmelt(batsbugsy) # 88689 obs of 19 vars
 
 bbdf <- bbdf %>% mutate(across( c(Sample, bat.sp, Order, Family, Genus, Species), factor)) 
 str(bbdf)
-# 'data.frame':	88689 obs. of  19 variables:
-#  $ OTU           : chr  "a7e16d1e1095aa617d8e54d2c373869e" "69f761880a791a38df0fd6953cca5bfa" "0e4ac3759486bca145e8be797c7fc542" "fe67553c5b555066baf8153308ebf221" ...
-#  $ Sample        : Factor w/ 47 levels "10B","11B","12B",..: 17 17 32 34 32 32 28 24 16 1 ...
-#  $ Abundance     : num  1301 800 699 646 572 ...
-#  $ sample.nr     : int  38 38 54 57 54 54 49 44 37 10 ...
-#  $ batch         : chr  "B" "B" "A" "B" ...
-#  $ bat.sp        : Factor w/ 2 levels "MBRA","MMYS": 1 1 2 2 2 2 2 1 1 2 ...
-#  $ sex           : chr  "F" "F" "F" "M" ...
-#  $ year          : int  2018 2018 2018 2018 2018 2018 2018 2018 2018 2017 ...
-#  $ date          : chr  "6/13/2018" "6/13/2018" "6/18/2018" "6/18/2018" ...
-#  $ date.text     : chr  "13_Jun" "13_Jun" "18_Jun" "18_Jun" ...
-#  $ nanodrop.ngul.: num  4.9 4.9 5.1 5.1 5.1 5.1 5.7 7.9 6.4 5.9 ...
-#  $ extradctio.run: chr  "Ex6" "Ex6" "Ex7" "Ex5" ...
-#  $ Kingdom       : chr  "tax=Animalia" "tax=Animalia" "tax=Animalia" "tax=Animalia" ...
-#  $ Phylum        : chr  "Arthropoda" "Arthropoda" "Arthropoda" "Arthropoda" ...
-#  $ Class         : chr  "Insecta" "Insecta" "Insecta" "Insecta" ...
-#  $ Order         : Factor w/ 10 levels "Araneae","Coleoptera",..: 7 6 3 6 3 3 3 6 6 3 ...
-#  $ Family        : Factor w/ 53 levels "Alucitidae","Anisopodidae",..: 23 5 31 5 31 31 39 32 5 39 ...
-#  $ Genus         : Factor w/ 117 levels "Acompsia","Actia",..: 47 12 95 12 95 95 113 90 12 113 ...
-#  $ Species       : Factor w/ 162 levels "Acompsia cinerella",..: 69 18 131 18 131 131 158 123 18 158 ...
 
 # How many prey species for MBRA and MMYS? 
 
