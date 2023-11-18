@@ -67,6 +67,9 @@ library(microbiomer)
 library(microbiomeutilities)
 library(qiime2R)
 library(netresponse)
+library(rstatix)
+library(vegan)
+library(picante)
 
 
 ##############################################################
@@ -907,25 +910,18 @@ I think it would be better to use distance matrix that is solely based on presen
 
 # "By default, this function implements a filter used by Subramanian et al., Nature, 2014. It selects those OTUs/ASVs present at or above a level of confident detection (0.1% relative abundance) in at least 2 samples. This filter, especially using DADA2 data, results in a strong reduction of taxa, yet the total number of reads should not drop too much. Always be considerate when using these filters, e.g. when running alpha-diversity measures it might not be appropriate to use."
 
-data(ps_NP)
-phyloseq::ntaxa(ps_NP)
-ps_NP_filt <- ps_NP %>% pres_abund_filter()
 
-bby1 <- bby %>% pres_abund_filter(pres = 1) 
+bby_pa <- bby %>% tax_transform("binary")
 # Use only one sample in the case since we had so few samples to begin with. If we use 2 samples as a filter, we are left with only 209 ASVs. 
 
 # A total of 1804 ASVs were found to be present at or above a level of confident detection (0.1% relative abundance) in at least 1 samples (n = 0 ASVs excluded)
 
-bby1 <- phyloseq_standardize_otu_abundance(bby1, method = "pa")
+#bby1 <- phyloseq_standardize_otu_abundance(bby1, method = "pa")
 
 #Check to see how it worked 
-bby1df <- psmelt(bby1) # 81180 obs of 19 variables # Abundance is now 1 or 0 
-
-jac = distance(bby1, method = "jaccard", binary = TRUE) 
-
-jac.pcoa = ordinate(bby1, method="PCoA", distance=jac)
-
-# For each sample 
+# bby1df <- psmelt(bby1) # 81180 obs of 19 variables # Abundance is now 1 or 0 - but lose taxa info below Order? 
+bby_padf <- psmelt(bby_pa) # 81180 of 20 vars, retains lower taxa descriptions (gooood) 
+# Some basic housekeeping
 bby1@sam_data$sampleid <- as.factor(bby1@sam_data$sample.nr)
 MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
 MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
@@ -933,6 +929,28 @@ MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
 bby1@sam_data$bat.sp <- as.factor(bby1@sam_data$bat.sp)
 MBRA@sam_data$bat.sp <- as.factor(MBRA@sam_data$bat.sp)
 MMYS@sam_data$bat.sp <- as.factor(MMYS@sam_data$bat.sp)
+
+#### Alpha diversity 
+# https://docs.onecodex.com/en/articles/4136553-alpha-diversity
+# "This is the most simple alpha diversity metric. It just counts up the number of different taxa you observe in a sample at a given taxonomic level, usually species." 
+
+alphadiv <- alpha(bby1, index = "observed")
+alphadiv <- rownames_to_column(alphadiv)
+alphadiv <- alphadiv %>% dplyr::rename(Sample = rowname)
+alphadiv <- alphadiv %>% dplyr::rename(observed.alpha = observed)
+
+bby1df1 <- left_join(bby1df, alphadiv)
+
+
+## Probably easiest to simply show as a boxplot 
+
+
+#### Beta diversity 
+jac = distance(bby1, method = "jaccard", binary = TRUE) 
+
+jac.pcoa = ordinate(bby1, method="PCoA", distance=jac)
+
+
 
 ## PCOA
 p <- plot_ordination(bby1, jac.pcoa, "samples", color="bat.sp") + 
@@ -954,18 +972,10 @@ p <- plot_ordination(bby1, jac.NMDS, "samples", color="bat.sp") +
 p
 
 ## Try Faith's index of alpha diversity 
+BiocManager::install("sparseMatrixStats")
+library(sparseMatrixStats)
 library(mia)
 library(microbiome)
-estimateDiversity(
-  bby1,
-  assay.type = "counts",
-  assay_name = NULL,
-  index = "faith",
-  name = index,
-  tree_name = "phylo",
-  ...,
-  BPPARAM = SerialParam()
-)
 
 # For each sample 
 batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
