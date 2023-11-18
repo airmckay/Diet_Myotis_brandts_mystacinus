@@ -52,7 +52,6 @@ library(mixOmics)
 library(miaTime)
 library(miaViz)
 library(ade4)
-library(nlme)
 library(pals)
 library(RColorBrewer)
 library(MetBrewer)
@@ -73,7 +72,6 @@ library(picante)
 
 
 ##############################################################
-
 getwd()
 # "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus"
 
@@ -493,7 +491,7 @@ str(prevMBRA)
 ## Per sample per prey species 
 batsbugysrraB  = transform_sample_counts(MBRA, function(x) x / sum(x) )
 batsbugysrradfB <- psmelt(batsbugysrraB) # abundance is now relative abundance 
-batsbugszB <- as.data.frame(full_join(batsbugysrradfB, prevMBRA, by = "OTU"))
+batsbugszB <- as.data.frame(dplyr::full_join(batsbugysrradfB, prevMBRA, by = "OTU"))
 
 head(batsbugszB) 
 batsbugszB$BatSpecies <- "M. brandtii" #
@@ -539,7 +537,7 @@ str(prevMMYS)
 ## Per sample per prey species 
 batsbugysrraM  = transform_sample_counts(MMYS, function(x) x / sum(x) )
 batsbugysrradfM <- psmelt(batsbugysrraM) # abundance is now relative abundance 
-batsbugszM <- as.data.frame(full_join(batsbugysrradfM, prevMMYS, by = "OTU"))
+batsbugszM <- as.data.frame(dplyr::full_join(batsbugysrradfM, prevMMYS, by = "OTU"))
 
 head(batsbugszM) 
 batsbugszM$BatSpecies <- "M. mystacinus" #
@@ -550,7 +548,7 @@ batsbugszM$BatSpecies <- "M. mystacinus" #
 
 ## Combine the two - for visualizing differences 
 
-batsbugszBM <- full_join(batsbugszM, batsbugszB)
+batsbugszBM <- dplyr::full_join(batsbugszM, batsbugszB)
 summary(batsbugszBM) # 51506 rows 
 
 #write.csv(batsbugszBM, file = file.path(output_today, "bats_abundance_prevalence_Separate_then_combined.csv")) 
@@ -939,6 +937,7 @@ alphadiv <- as.data.frame(alphadiv)
 
 pa_alpha <- dplyr::left_join(bby_padf, alphadiv)
 
+# write.csv(pa_alpha, file = file.path(output_today, "Abundance_is_presence_absence_w_Observed_alphadiversity.csv")) #18.11.2023
 
 ## Probably easiest to simply show as a boxplot 
 ## Plot the predictions and the raw data 
@@ -955,9 +954,20 @@ plot_richness(bby_pa, x="bat.sp", measures="Observed")+
 
 ## Use a simple model to see if there is any difference in predicted results.
 
-library(nlme)
-m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data=pa_alpha)
-summary(m1) #
+# library(nlme)
+# m1 <- lme(observed.alpha ~ bat.sp + year, random= ~1|Sample, data=pa_alpha)
+# summary(m1)
+# 
+# m2 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, data=pa_alpha)
+# summary(m2)
+
+# Some users who have previously installed versions of the RcppEigen and minqa packages may encounter segmentation faults (!!); the solution is to make sure to re-install these packages before installing lme4
+
+library(lme4)
+
+# library(lme4)
+m3 <- lmer(observed.alpha ~ bat.sp + (1|Sample), pa_alpha)
+#
 # Linear mixed-effects model fit by REML
 #   Data: pa_alpha 
 #        AIC      BIC  logLik
@@ -992,13 +1002,22 @@ interpol <- expand.grid(year = (unique(m1$data$year)),
                         bat.sp = (unique(m1$data$bat.sp)),
                         Sample = unique(m1$data$Sample))
 
-interpol$observed.alpha <- predict(m1, interpol, type= "response",
-                       allow.new.levels=F) ## Check why Y axis is being bizarre 
+interpol$observed.alpha <- predict(m2, interpol, type= "response",
+                       allow.new.levels=F) ## Check why Y axis is being bizarre
+
+
+
+interpol1 <- expand.grid(bat.sp = (unique(m2$data$bat.sp))) 
+
+head(interpol1)
+
+interpol1$observed.alpha <- predict(m2, interpol1, type= "response",
+                       allow.new.levels=T) ## Check why Y axis is being bizarre 
 
 
 ## Plot the predictions and the raw data 
 
-predictplot <- ggplot(interpol) +
+predictplot <- ggplot(interpol1) +
   geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), color = c("black", "gray")) + 
   geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), alpha = 0.5) +
   theme_bw() +
@@ -1030,7 +1049,7 @@ rawplot <- plot_richness(bby_pa, x="bat.sp", measures="Observed")+
   theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
   theme(text = element_text(size = 15)) +
   theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) +
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) 
   ggtitle("Raw data")
 rawplot
 
