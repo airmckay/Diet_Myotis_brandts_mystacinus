@@ -912,21 +912,16 @@ I think it would be better to use distance matrix that is solely based on presen
 
 
 bby_pa <- bby %>% tax_transform("binary")
-# Use only one sample in the case since we had so few samples to begin with. If we use 2 samples as a filter, we are left with only 209 ASVs. 
 
-# A total of 1804 ASVs were found to be present at or above a level of confident detection (0.1% relative abundance) in at least 1 samples (n = 0 ASVs excluded)
+bby_padf <- psmelt(bby_pa) 
+# 81180 of 20 vars, retains lower taxa descriptions (gooood) 
 
-#bby1 <- phyloseq_standardize_otu_abundance(bby1, method = "pa")
-
-#Check to see how it worked 
-# bby1df <- psmelt(bby1) # 81180 obs of 19 variables # Abundance is now 1 or 0 - but lose taxa info below Order? 
-bby_padf <- psmelt(bby_pa) # 81180 of 20 vars, retains lower taxa descriptions (gooood) 
 # Some basic housekeeping
-bby1@sam_data$sampleid <- as.factor(bby1@sam_data$sample.nr)
+bby_pa@sam_data$sampleid <- as.factor(bby_pa@sam_data$sample.nr)
 MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
 MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
 
-bby1@sam_data$bat.sp <- as.factor(bby1@sam_data$bat.sp)
+bby_pa@sam_data$bat.sp <- as.factor(bby_pa@sam_data$bat.sp)
 MBRA@sam_data$bat.sp <- as.factor(MBRA@sam_data$bat.sp)
 MMYS@sam_data$bat.sp <- as.factor(MMYS@sam_data$bat.sp)
 
@@ -934,15 +929,116 @@ MMYS@sam_data$bat.sp <- as.factor(MMYS@sam_data$bat.sp)
 # https://docs.onecodex.com/en/articles/4136553-alpha-diversity
 # "This is the most simple alpha diversity metric. It just counts up the number of different taxa you observe in a sample at a given taxonomic level, usually species." 
 
-alphadiv <- alpha(bby1, index = "observed")
+alphadiv <- alpha(bby_pa, index = "observed")
 alphadiv <- rownames_to_column(alphadiv)
 alphadiv <- alphadiv %>% dplyr::rename(Sample = rowname)
 alphadiv <- alphadiv %>% dplyr::rename(observed.alpha = observed)
 
-bby1df1 <- left_join(bby1df, alphadiv)
+bby_padf <- as.data.frame(bby_padf)
+alphadiv <- as.data.frame(alphadiv)
+
+pa_alpha <- dplyr::left_join(bby_padf, alphadiv)
 
 
 ## Probably easiest to simply show as a boxplot 
+## Plot the predictions and the raw data 
+batcolors = c("#b3cde0", "#011f4b") 
+
+batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
+MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
+MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
+
+plot_richness(bby_pa, x="bat.sp", measures="Observed")+
+  geom_boxplot(aes(fill = bat.sp), color = c("black", "lightgray")) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") + theme_bw() 
+
+## Use a simple model to see if there is any difference in predicted results.
+
+library(nlme)
+m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data=pa_alpha)
+summary(m1) #
+# Linear mixed-effects model fit by REML
+#   Data: pa_alpha 
+#        AIC      BIC  logLik
+#   -4233422 -4233366 2116717
+# 
+# Random effects:
+#  Formula: ~1 | Sample
+#         (Intercept)    Residual
+# StdDev:    78.92271 1.12506e-12
+# 
+# Fixed effects:  observed.alpha ~ bat.sp * year 
+#                      Value Std.Error    DF    t-value p-value
+# (Intercept)      111.62278  5.102631 81135  21.875537   0e+00
+# bat.spMMYS      -146.15916  5.983817    41 -24.425741   0e+00
+# year               0.00220  0.000599    41   3.663826   7e-04
+# bat.spMMYS:year   -0.00186  0.000690    41  -2.701661   1e-02
+#  Correlation: 
+#                 (Intr) bt.MMYS year  
+# bat.spMMYS      -0.853               
+# year             0.986 -0.841        
+# bat.spMMYS:year -0.856  0.984  -0.868
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -2.0841475 -0.7831342  0.0000000  0.7010314  2.1473034 
+# 
+# Number of Observations: 81180
+# Number of Groups: 45 
+
+### Model predicitons 
+interpol <- expand.grid(year = (unique(m1$data$year)),
+                        bat.sp = (unique(m1$data$bat.sp)),
+                        Sample = unique(m1$data$Sample))
+
+interpol$observed.alpha <- predict(m1, interpol, type= "response",
+                       allow.new.levels=F) ## Check why Y axis is being bizarre 
+
+
+## Plot the predictions and the raw data 
+
+predictplot <- ggplot(interpol) +
+  geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), color = c("black", "gray")) + 
+  geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), alpha = 0.5) +
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
+  xlab("") +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  ggtitle("Predicted data") + ylab("Alpha diversity (Observed)")
+predictplot # 
+
+
+bby_padf$bat.sp <- as.factor(bby_padf$bat.sp)
+summary(bby_padf$bat.sp)
+#  MBRA  MMYS 
+# 25256 55924 
+
+## Observed diversity compared between the two bat species 
+rawplot <- plot_richness(bby_pa, x="bat.sp", measures="Observed")+
+  geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
+  geom_violin(aes(fill = bat.sp), alpha = 0.5) +
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
+  xlab("") + ylab("Alpha diversity (Observed)") +
+  theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) +
+  ggtitle("Raw data")
+rawplot
+
+cowplot::plot_grid(rawplot, predictplot)
+
+
+ 
+
 
 
 #### Beta diversity 
@@ -977,177 +1073,7 @@ library(sparseMatrixStats)
 library(mia)
 library(microbiome)
 
-# For each sample 
-batsbugsy@sam_data$sampleid <- as.factor(batsbugsy@sam_data$sample.nr)
-MBRA@sam_data$sampleid <- as.factor(MBRA@sam_data$sample.nr)
-MMYS@sam_data$sampleid <- as.factor(MMYS@sam_data$sample.nr)
 
-plot_richness(batsbugsy, x="sampleid", measures="Shannon")+
-  geom_boxplot(aes(fill = bat.sp), color = "gray") +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  facet_wrap(~bat.sp) +
-  theme_bw() # Useful to look at but not something I feel needs to be in the manuscript
-
-# shannonB <- plot_richness(MBRA, x="sampleid", measures="Shannon")+
-#   geom_boxplot(fill = "#b3cde0", color = "gray", width = 2) +
-#   theme_bw() + 
-#   ggtitle("M. brandtii") + 
-#   theme(text = element_text(size = 15)) + xlab("")
-# shannonB
-# 
-# shannonM <- plot_richness(MMYS, x="sampleid", measures="Shannon")+
-#   geom_boxplot(fill = "#011f4b", color = "gray") +
-#   theme_bw() + 
-#   ggtitle("M. mystacinus") +
-#   theme(text = element_text(size = 15)) + xlab("")
-# shannonM
-
-
-## Alpha diversity - diversity between communities 
-rich <- estimate_richness(batsbugsy)
-head(rich)
-#      Observed Chao1  se.chao1      ACE    se.ACE  Shannon   Simpson InvSimpson    Fisher
-# X10B       33    33 0.0000000      NaN       NaN 3.202442 0.9484766   19.40864  4.930898
-# X11B       37    37 0.0000000 37.00000 0.9863939 3.146580 0.9421180   17.27653  5.642515
-# X12B       65    65 0.1240347 65.67607 2.5055369 3.665782 0.9647341   28.35602 11.034699
-# X13B       45    45 0.0000000      NaN       NaN 3.260423 0.9449219   18.15604  7.120491
-# X14B       43    43 0.0000000 43.00000 0.9883037 3.404255 0.9568050   23.15084  6.752266
-# X15B       58    58 0.4956709 59.08000 1.6013106 3.708866 0.9691568   32.42208  9.645112
-
-# pairwise.wilcox.test(rich$Observed, sample_data(batsbugsy)$bat.sp)
-# # 	Pairwise comparisons using Wilcoxon rank sum test with continuity correction 
-# # 
-# # data:  rich$Observed and sample_data(batsbugsy)$bat.sp 
-# # 
-# #      MBRA
-# # MMYS 0.37
-# # 
-# # P value adjustment method: holm 
-# # Warning message:
-# # In wilcox.test.default(xi, xj, paired = paired, ...) :
-# #   cannot compute exact p-value with ties
-# 
-# pairwise.wilcox.test(rich$Shannon, sample_data(batsbugsy)$bat.sp)
-# 
-# # 	Pairwise comparisons using Wilcoxon rank sum exact test 
-# # 
-# # data:  rich$Shannon and sample_data(batsbugsy)$bat.sp 
-# # 
-# #      MBRA
-# # MMYS 0.34
-# # 
-# # P value adjustment method: holm 
-# 
-# pairwise.wilcox.test(rich$Simpson, sample_data(batsbugsy)$bat.sp)
-# # 	Pairwise comparisons using Wilcoxon rank sum exact test 
-# # 
-# # data:  rich$Simpson and sample_data(batsbugsy)$bat.sp 
-# # 
-# #      MBRA
-# # MMYS 0.4 
-# # 
-# # P value adjustment method: holm
-# 
-# pairwise.wilcox.test(rich$Fisher, sample_data(batsbugsy)$bat.sp)
-# # 	Pairwise comparisons using Wilcoxon rank sum exact test 
-# 
-# data:  rich$Simpson and sample_data(batsbugsy)$bat.sp 
-# 
-#      MBRA
-# MMYS 0.4 
-# 
-# P value adjustment method: holm
-
-## t-test and ANOVA
-
-rich1 <- rich %>% rownames_to_column("Sample") 
-rich1$Sample <- gsub("X", "", rich1$Sample)
-
-samplemap <- batsbugsz %>% dplyr::select(Sample, bat.sp, sex, year, date) %>% distinct() #metadata for each sample
-rich2 <- left_join(rich1, samplemap) # Each samples metadata and alpha diversity measurements 
-
-hist(rich2$Shannon, main="Shannon index", xlab="") 
-# this is not normally distributed so actually no AOV or Tukey tests should not be applied. 
-# Instead I can run a glmm to test
-
-library(nlme)
-m1 <- lme(Shannon ~ bat.sp*year, random=~1|Sample, data=rich2)
-summary(m1) #
-# Linear mixed-effects model fit by REML
-#   Data: rich2 
-#        AIC      BIC    logLik
-#   53.65551 64.22271 -20.82775
-# 
-# Random effects:
-#  Formula: ~1 | Sample
-#         (Intercept)  Residual
-# StdDev:   0.3300256 0.1238386
-# 
-# Fixed effects:  Shannon ~ bat.sp * year 
-#                     Value Std.Error DF    t-value p-value
-# (Intercept)      -3.80903  410.6388 43 -0.0092759  0.9926
-# bat.spMMYS      193.23219  487.2329 43  0.3965910  0.6936
-# year              0.00361    0.2035 43  0.0177207  0.9859
-# bat.spMMYS:year  -0.09578    0.2415 43 -0.3966577  0.6936
-#  Correlation: 
-#                 (Intr) bt.MMYS year  
-# bat.spMMYS      -0.843               
-# year            -1.000  0.843        
-# bat.spMMYS:year  0.843 -1.000  -0.843
-# 
-# Standardized Within-Group Residuals:
-#         Min          Q1         Med          Q3         Max 
-# -1.41804764 -0.17744410  0.04025917  0.24637826  0.40965665 
-# 
-# Number of Observations: 47
-# Number of Groups: 47 
-
-### Model predicitons 
-
-interpol <- expand.grid(year = (unique(m1$data$year)),
-                        bat.sp = (unique(m1$data$bat.sp)),
-                        Sample = unique(m1$data$Sample))
-
-interpol$Shannon<- predict(m1, interpol, type= "response",
-                       allow.new.levels= T)
-
-
-## Plot the predictions and the raw data 
-batcolors = c("#b3cde0", "#011f4b") 
-
-predictplot <- ggplot(interpol) +
-  geom_boxplot(aes(x = bat.sp, y= Shannon, fill = bat.sp), color = c("black", "gray")) + 
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
-  xlab("") +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
-  ggtitle("Predicted data") + ylab("Alpha diversity (Shannon)")
-predictplot # And now they look the same:( 
-
-
-
-## Shannon diversity compared between the two bat species 
-rawplot <- plot_richness(batsbugsy, x="bat.sp", measures="Shannon")+
-  geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
-  xlab("") + ylab("Alpha diversity (Shannon)") +
-  theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) +
-  ggtitle("Raw data")
-
-rawplot
-
-cowplot::plot_grid(rawplot, predictplot)
 
 
 ```
