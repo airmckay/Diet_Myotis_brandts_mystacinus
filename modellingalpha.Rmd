@@ -299,7 +299,7 @@ anova(m3, m4) # changed method to ML for both to make it possible to compare the
 # The null hypothesis states that the population means are all equal. Usually, a significance level (denoted as α or alpha) of 0.05 works well. A significance level of 0.05 indicates a 5% risk of concluding that a difference exists when there is no actual difference.
 
 # m3 still has the lowest AIC 
-# The null hypothesis has a significant p value so it may be that the difference we see is purely the difference amongst individuals regardless of species. 
+# The null hypothesis has a significant p value so there is strong evidence that the two models are very different... 
 
 m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "REML", data = pa)
 summary(m3)
@@ -317,7 +317,7 @@ library(tidyverse)
 pframe$pred.alpha1 <- get_predicted(m3, newdata = pframe)
 
 
-## Make a similar set of predictions for m1 
+## Make a similar set of predictions for m2 (next lowest AIC that includes year as a fixed effect) 
 
 table(pa$year, pa$bat.sp)
   #       MBRA  MMYS
@@ -332,21 +332,22 @@ table(pa$year, pa$bat.sp)
 #27060 obs of mbra, approximately 3.7 as many obs of 2018 samples as 2017 
 # 27060/4 = 6765
 pframe_b <- pframe %>% filter(bat.sp == "MBRA") %>% droplevels() %>% dplyr::select(bat.sp) 
-pframe_b$year <- rep(c("2017", "2018", "2018", "2018", each = 6765))
+pframe_b$year <- rep(c("2017", "2018", "2018", "2018"), each = 6765)
 
 
 # 34276/21648 = 1.583333 , approximately 2 times as many samples from 2018 as 2017
 
 pframe_m <- pframe %>% filter(bat.sp == "MMYS") %>% droplevels() %>% dplyr::select(bat.sp) 
-pframe_m$year <- rep(c("2017", "2018", "2018", each = 18040))
+pframe_m$year <- rep(c("2017", "2018", "2018"), each = 18040)
 
 pframe1 <- dplyr::full_join(pframe_b, pframe_m)# also 81180 observations 
+pframe1$year <- as.factor(pframe1$year) 
 
-summary(pframe1)
+#summary(pframe1)
+pframe1$pred.alpha1 <- get_predicted(m2, newdata = pframe1)
 
-pframe1$pred.alpha1 <- 
+
 ## Plot the predictions and the raw data 
-
 
 batcolors = c("#b3cde0", "#011f4b") 
 
@@ -381,13 +382,48 @@ rawplot <- ggplot(pa) +
   ggtitle("Raw data")
 rawplot
 
-cowplot::plot_grid(rawplot, predictplot)
+m3plots <- cowplot::plot_grid(rawplot, predictplot)
 
-mbra <- psmelt(MBRA)
-mbra$Sample <- as.factor(mbra$Sample)
-levels(mbra$Sample)
-mmys <- psmelt(MMYS)
-mmys$Sample <- as.factor(mmys$Sample)
-levels(mmys$Sample)
+## Now for m2 data 
+
+predictplot <- ggplot(pframe1) +
+  geom_violin(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp)) +
+  geom_boxplot(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
+  xlab("") +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  ggtitle("Predicted data") + ylab("Alpha diversity (Observed)") + 
+  facet_wrap(~year)
+predictplot # 
+
+
+## Observed diversity compared between the two bat species 
+rawplot <- ggplot(pa) + 
+  geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
+  geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
+  xlab("") + ylab("Alpha diversity (Observed)") +
+  theme(strip.background = element_blank()) +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  ggtitle("Raw data") + 
+  facet_wrap(~year)
+rawplot
+
+m2plots <- cowplot::plot_grid(rawplot, predictplot, nrow = 2)
+
+
+m2plots
+
+
 ```
 
