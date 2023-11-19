@@ -33,12 +33,12 @@ library(reshape2)
 library(ggpubr) # 
 library(cowplot) # 
 library(devtools) #
-library(lme4) 
 library(phyloseq)
 library(plyr)
 library(Rcpp)
 library(vctrs)
 library(metagMisc)
+library(lme4)
 library(DHARMa)
 library(sjPlot)
 library(effects)
@@ -910,6 +910,7 @@ I think it would be better to use distance matrix that is solely based on presen
 
 
 bby_pa <- bby %>% tax_transform("binary")
+bby_pa1 <- as_phyloseqbby_pa 
 
 bby_padf <- psmelt(bby_pa) 
 # 81180 of 20 vars, retains lower taxa descriptions (gooood) 
@@ -952,248 +953,120 @@ plot_richness(bby_pa, x="bat.sp", measures="Observed")+
   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
                       name = "Bat species") + theme_bw() 
 
-## Use a simple model to see if there is any difference in predicted results.
-
-# library(nlme)
-# m1 <- lme(observed.alpha ~ bat.sp + year, random= ~1|Sample, data=pa_alpha)
-# summary(m1)
-# 
-# m2 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, data=pa_alpha)
-# summary(m2)
-
-# Some users who have previously installed versions of the RcppEigen and minqa packages may encounter segmentation faults (!!); the solution is to make sure to re-install these packages before installing lme4
-
-library(lme4)
-
-# library(lme4)
-m3 <- lmer(observed.alpha ~ bat.sp + (1|Sample), pa_alpha)
-#
-# Linear mixed-effects model fit by REML
-#   Data: pa_alpha 
-#        AIC      BIC  logLik
-#   -4233422 -4233366 2116717
-# 
-# Random effects:
-#  Formula: ~1 | Sample
-#         (Intercept)    Residual
-# StdDev:    78.92271 1.12506e-12
-# 
-# Fixed effects:  observed.alpha ~ bat.sp * year 
-#                      Value Std.Error    DF    t-value p-value
-# (Intercept)      111.62278  5.102631 81135  21.875537   0e+00
-# bat.spMMYS      -146.15916  5.983817    41 -24.425741   0e+00
-# year               0.00220  0.000599    41   3.663826   7e-04
-# bat.spMMYS:year   -0.00186  0.000690    41  -2.701661   1e-02
-#  Correlation: 
-#                 (Intr) bt.MMYS year  
-# bat.spMMYS      -0.853               
-# year             0.986 -0.841        
-# bat.spMMYS:year -0.856  0.984  -0.868
-# 
-# Standardized Within-Group Residuals:
-#        Min         Q1        Med         Q3        Max 
-# -2.0841475 -0.7831342  0.0000000  0.7010314  2.1473034 
-# 
-# Number of Observations: 81180
-# Number of Groups: 45 
-
-### Model predicitons 
-interpol <- expand.grid(year = (unique(m1$data$year)),
-                        bat.sp = (unique(m1$data$bat.sp)),
-                        Sample = unique(m1$data$Sample))
-
-interpol$observed.alpha <- predict(m2, interpol, type= "response",
-                       allow.new.levels=F) ## Check why Y axis is being bizarre
-
-
-
-interpol1 <- expand.grid(bat.sp = (unique(m2$data$bat.sp))) 
-
-head(interpol1)
-
-interpol1$observed.alpha <- predict(m2, interpol1, type= "response",
-                       allow.new.levels=T) ## Check why Y axis is being bizarre 
-
-
-## Plot the predictions and the raw data 
-
-predictplot <- ggplot(interpol1) +
-  geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), color = c("black", "gray")) + 
-  geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), alpha = 0.5) +
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
-  xlab("") +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
-  ggtitle("Predicted data") + ylab("Alpha diversity (Observed)")
-predictplot # 
-
-
-bby_padf$bat.sp <- as.factor(bby_padf$bat.sp)
-summary(bby_padf$bat.sp)
-#  MBRA  MMYS 
-# 25256 55924 
-
-## Observed diversity compared between the two bat species 
-rawplot <- plot_richness(bby_pa, x="bat.sp", measures="Observed")+
-  geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
-  geom_violin(aes(fill = bat.sp), alpha = 0.5) +
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
-  xlab("") + ylab("Alpha diversity (Observed)") +
-  theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) 
-  ggtitle("Raw data")
-rawplot
-
-cowplot::plot_grid(rawplot, predictplot)
-
-
- 
+## Use a simple model to see if there is any difference in predicted results
 
 
 
 #### Beta diversity 
-jac = distance(bby1, method = "jaccard", binary = TRUE) 
+## Different ordination approach 
+https://david-barnett.github.io/microViz/articles/web-only/ordination.html
+# jac = distance(bby_pa, method = "jaccard", binary = TRUE) 
+# 
+# jac.pcoa = ordinate(bby1, method="PCoA", distance=jac)
 
-jac.pcoa = ordinate(bby1, method="PCoA", distance=jac)
+jac1 <- dist_calc(bby_pa, dist = "jaccard", binary = TRUE)
 
 
+### Ordination - Jaccard - Species 
+bby %>%
+  tax_transform("binary", rank = "Species") %>%
+  dist_calc(dist = "jaccard", binary = TRUE) %>% #
+  ord_calc("PCoA") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
 
-## PCOA
-p <- plot_ordination(bby1, jac.pcoa, "samples", color="bat.sp") + 
-  geom_point(size=5) + geom_path() + scale_colour_hue(guide = FALSE) 
-p
+### Ordination - Jaccard 
+bby %>%
+  tax_transform("binary", rank = "Genus") %>%
+  dist_calc(dist = "jaccard", binary = TRUE) %>% #
+  ord_calc("PCoA") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
 
-## NMDS
+### Ordination - NMDS 
+bby %>%
+  tax_transform("binary", rank = "Species") %>%
+  dist_calc(dist = "jaccard", binary = TRUE) %>% #
+  ord_calc("NMDS") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
 
-jac.NMDS <- ordinate(bby1, "NMDS", jac)
 
+bby_NMDS <- bby %>%
+  tax_transform("binary", rank = "Species") %>%
+  dist_calc(dist = "jaccard", binary = TRUE) %>% #
+  ord_calc("NMDS")
+
+## Make data.frames version of the NMDS and PCoA on the species level 
+
+bby_pjac <- ordinate(bby_pa, "NMDS", "jaccard")
 # Warning messages:
-# 1: In metaMDS(ps.dist) :
+# 1: In metaMDS(veganifyOTU(physeq), distance, ...) :
 #   stress is (nearly) zero: you may have insufficient data
 # 2: In postMDS(out$points, dis, plot = max(0, plot - 1), ...) :
 #   skipping half-change scaling: too few points below threshold
 
-p <- plot_ordination(bby1, jac.NMDS, "samples", color="bat.sp") +
-  geom_line() + geom_point(size=5) 
-p
-
-## Try Faith's index of alpha diversity 
-BiocManager::install("sparseMatrixStats")
-library(sparseMatrixStats)
-library(mia)
-library(microbiome)
+bby_njac <- ordinate(bby_pa, "PCoA", "jaccard")
 
 
+### Extract the scores 
+pcoa <- bby %>%
+  tax_transform("binary", rank = "Species") %>%
+  dist_calc(dist = "jaccard", binary = TRUE) %>% #
+  ord_calc("PCoA") %>% ord_plot()
+
+pcoa_df <- pcoa$data
+pcoa_df$year <- as.factor(pcoa_df$year)
+
+## combine with the dataset that has alpha diversity 
+
+pa1 <- dplyr::left_join(pa, pcoa_df) # 81180 obs
+summary(pa1)
+
+nmds <- bby %>%
+  tax_transform("binary", rank = "Species") %>%
+  dist_calc(dist = "jaccard", binary = TRUE) %>% #
+  ord_calc("NMDS") %>% ord_plot()
+
+nmds_df <- nmds$data
+nmds_df$year <- as.factor(nmds_df$year)
+
+## combine with the dataset that has alpha diversity 
+
+pa2 <- dplyr::left_join(pa, nmds_df) # 81180 obs
+summary(pa2)
 
 
-```
-
-
-
-
-## Different ordination approach 
-https://david-barnett.github.io/microViz/articles/web-only/ordination.html
-
-```{r}
-
-pca <- batsbugsy %>% 
-   tax_transform(trans = "log", rank = "Family") %>% 
-   dist_calc(dist = "bray") %>% 
-   ord_calc("PCoA") %>% ord_plot(color = "bat.sp", size = 2) # can get pca scores 
-
-pca1 <- ordinate(batsbugsy, method = "PCoA", distance = "bray", trans = "log", k = 2)
-summary(pca1)
-
-## For plotting
-
-batcolors = c("#b3cde0", "#011f4b") 
-          #     MBRA        MMYS 
-
-### Pcoa - Bray - Curtis, log10 transformed - use this figure for the manuscript 
-batsbugsy %>%
-  tax_transform("log", rank = "Family") %>%
-  dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
-  ord_calc("PCoA") %>%
-  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
-  theme_bw() +
-  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::theme_ggside_void() + 
-  theme(legend.position = "none")
-
-
-### Pcoa - Bray - Curtis, not transformed 
-batsbugsy %>%
-  tax_transform("identity", rank = "Family") %>%
-  dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
-  ord_calc("PCoA") %>%
-  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
-  theme_bw() +
-  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::theme_ggside_void() + 
-  theme(legend.position = "none")
-
-## 
-batsbugsy %>%
-  tax_transform("log10", rank = "Order") %>%
-  dist_calc(dist = "bray") %>% #aitchison = euclidian in clr transformed data 
-  ord_calc("PCoA") %>%
-  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
-  theme_bw() +
-  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::theme_ggside_void() + 
-  theme(legend.position = "bottom")
-
-#Warning message:
-# In microbiome::transform(otu, transform = trans, target = "OTU",  :
-#   OTU table contains zeroes. Using log10(1 + x) transform.
-
-### Pcoa - Bray - curtis, relative abundance 
-batsbugsy %>%
-  tax_transform("compositional", rank = "Family") %>%
-  dist_calc(dist = "bray") %>% 
-  ord_calc("PCoA") %>%
-  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
-  theme_bw() +
-  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
-  ggside::theme_ggside_void() + 
-  theme(legend.position = "none")
-
-###########################################
-## combine pca scores with batsbugs object
-###########################################
-
-pcadf <- pca$data
-
-bbdf1 <- left_join(bbdf, pcadf)
-head(bbdf1)
+# 19.11.2023 
+# write.csv(pa1, file = file.path(output_today, "jaccard_binary_pcoa.csv"))
+# write.csv(pa2, file = file.path(output_today, "jaccard_binary_nmds.csv"))
 
 
 ```
+
+
+
 
 
 # Mixed linear model 
@@ -1206,194 +1079,88 @@ https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics
 library(nlme)
 
 # simplest model 
-mi <- lme(MDS1 ~ bat.sp, random=~1|sampleid, data=bbdf1)
+mi <- lme(MDS1 ~ bat.sp, random=~1|Sample, data=pa1)
 summary(mi) # species significant
-# Linear mixed-effects model fit by REML
-#   Data: bbdf1 
+
+#   Data: pa1 
 #        AIC      BIC  logLik
-#   -5333342 -5333305 2666675
+#   -4878364 -4878327 2439186
 # 
 # Random effects:
-#  Formula: ~1 | sampleid
+#  Formula: ~1 | Sample
 #         (Intercept)     Residual
-# StdDev:   0.7916966 2.076935e-14
+# StdDev:   0.8871849 2.119282e-14
 # 
 # Fixed effects:  MDS1 ~ bat.sp 
-#                  Value   Std.Error    DF   t-value p-value
-# (Intercept)  0.3284397 0.008340768 88642  39.37763       0
-# bat.spMMYS  -0.7752206 0.010270088    45 -75.48335       0
+#                  Value  Std.Error    DF    t-value p-value
+# (Intercept) -0.2277298 0.01619829 81135 -14.058882       0
+# bat.spMMYS  -0.1636470 0.01951616    43  -8.385205       0
 #  Correlation: 
 #            (Intr)
-# bat.spMMYS -0.812
-# 
-# Standardized Within-Group Residuals:
-#         Min          Q1         Med          Q3         Max 
-# -2.61928949 -0.81251429  0.01737284  0.49178496  2.61928949 
-# 
-# Number of Observations: 88689
-# Number of Groups: 47
-
-
-
-# + year
-mii <- lme(MDS1~bat.sp + year, random=~1|sampleid, data=bbdf1)
-summary(mii) # species and year significant 
-# Linear mixed-effects model fit by REML
-#   Data: bbdf1 
-#        AIC      BIC  logLik
-#   -5336306 -5336259 2668158
-# 
-# Random effects:
-#  Formula: ~1 | sampleid
-#         (Intercept)     Residual
-# StdDev:   0.8085271 2.042184e-14
-# 
-# Fixed effects:  MDS1 ~ bat.sp + year 
-#                  Value   Std.Error    DF   t-value p-value
-# (Intercept)  0.5465725 0.009105451 88642  60.02696       0
-# bat.spMMYS  -0.8523200 0.010195013    44 -83.60165       0
-# year        -0.0000879 0.000001595    44 -55.14862       0
-#  Correlation: 
-#            (Intr) b.MMYS
-# bat.spMMYS -0.784       
-# year       -0.434  0.137
-# 
-# Standardized Within-Group Residuals:
-#         Min          Q1         Med          Q3         Max 
-# -2.51163939 -0.73392060 -0.05844183  0.64965564  2.81608053 
-# 
-# Number of Observations: 88689
-# Number of Groups: 47
-
-# species*year interaction 
-miii <- lme(MDS1~bat.sp + bat.sp*year, random=~1|sampleid, data=bbdf1)
-summary(miii)
-
-# Linear mixed-effects model fit by REML
-#   Data: bbdf1 
-#        AIC      BIC  logLik
-#   -5340926 -5340870 2670469
-# 
-# Random effects:
-#  Formula: ~1 | sampleid
-#         (Intercept)    Residual
-# StdDev:   0.8090302 1.98937e-14
-# 
-# Fixed effects:  MDS1 ~ bat.sp + bat.sp * year 
-#                      Value   Std.Error    DF    t-value p-value
-# (Intercept)      0.9632098 0.010727067 88642   89.79247       0
-# bat.spMMYS      -1.3789148 0.012520505    43 -110.13252       0
-# year            -0.0002559 0.000002886    43  -88.67867       0
-# bat.spMMYS:year  0.0002365 0.000003425    43   69.06416       0
-#  Correlation: 
-#                 (Intr) bt.MMYS year  
-# bat.spMMYS      -0.857               
-# year            -0.667  0.572        
-# bat.spMMYS:year  0.562 -0.609  -0.843
+# bat.spMMYS -0.83 
 # 
 # Standardized Within-Group Residuals:
 #        Min         Q1        Med         Q3        Max 
-# -2.7122580 -0.8761821  0.1046396  0.5497066  2.7680658 
+# -2.1897666 -0.5762544 -0.1303121  0.4662422  2.2735854 
 # 
-# Number of Observations: 88689
-# Number of Groups: 47 
+# Number of Observations: 81180
+# Number of Groups: 45 
 
-miv <- lme(MDS1~bat.sp + bat.sp*year + 
-           bat.sp*Order, 
-           random=~1|sampleid, data=bbdf1)
-summary(miv) ## massive ouput, here is just the top part 
 
+# + year
+mii <- lme(MDS1~bat.sp + year, random=~1|Sample, data=pa1)
+summary(mii) # species and year significant 
 # Linear mixed-effects model fit by REML
-#   Data: bbdf1 
+#   Data: pa1 
 #        AIC      BIC  logLik
-#   -5339681 -5339456 2669865
+#   -4878413 -4878366 2439211
 # 
 # Random effects:
-#  Formula: ~1 | sampleid
+#  Formula: ~1 | Sample
 #         (Intercept)     Residual
-# StdDev:   0.8090342 1.989566e-14
+# StdDev:   0.9036295 2.118537e-14
 # 
-# Fixed effects:  MDS1 ~ bat.sp + bat.sp * year + bat.sp * Order 
-#                                  Value   Std.Error    DF    t-value p-value
-# (Intercept)                  0.9632125 0.010728424 88624   89.78136  0.0000
-# bat.spMMYS                  -1.3789047 0.012522160    43 -110.11716  0.0000 *
-# year                        -0.0002559 0.000002887    43  -88.65406  0.0000 *
-# OrderColeoptera              0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderDiptera                 0.0000000 0.000000000 88624   -0.01357  0.9892
-# OrderHemiptera               0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderHymenoptera             0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderLepidoptera             0.0000000 0.000000000 88624    0.00181  0.9986
-# OrderNeuroptera              0.0000000 0.000000000 88624    0.17185  0.8636
-# OrderOrthoptera              0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderPsocodea                0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderTrichoptera             0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:year              0.0002365 0.000003425    43   69.04427  0.0000 *
+# Fixed effects:  MDS1 ~ bat.sp + year 
+#                  Value  Std.Error    DF   t-value p-value
+# (Intercept) -0.1129993 0.02226256 81135 -5.075757       0
+# bat.spMMYS  -0.1889463 0.01979818    42 -9.543624       0
+# year2018    -0.1460407 0.01944302    42 -7.511212       0
+#  Correlation: 
+#            (Intr) b.MMYS
+# bat.spMMYS -0.711       
+# year2018   -0.686  0.170
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -2.2219793 -0.5843177 -0.1408389  0.4506845  2.2639034 
+# 
+# Number of Observations: 81180
+# Number of Groups: 45 
 
-
-
-mv <- lme(MDS1~ bat.sp + 
-            bat.sp*year + 
-            year + Order +
-           bat.sp*Order, 
-           random=~1|sampleid, data=bbdf1)
-
-summary(mv)
-# Linear mixed-effects model fit by REML
-#   Data: bbdf1 
+miii <- lme(MDS1~bat.sp + year + Order, random=~1|Sample, data=pa1)
+summary(miii)
+#   Data: pa1 
 #        AIC      BIC  logLik
-#   -5339681 -5339456 2669865
+#   -4877860 -4877739 2438943
 # 
 # Random effects:
-#  Formula: ~1 | sampleid
+#  Formula: ~1 | Sample
 #         (Intercept)     Residual
-# StdDev:   0.8090342 1.989566e-14
+# StdDev:   0.9036943 2.118562e-14
 # 
-# Fixed effects:  MDS1 ~ bat.sp + bat.sp * year + year + Order + bat.sp * Order 
-#                                  Value   Std.Error    DF    t-value p-value
-# (Intercept)                  0.9632125 0.010728424 88624   89.78136  0.0000
-# bat.spMMYS                  -1.3789047 0.012522160    43 -110.11716  0.0000
-# year                        -0.0002559 0.000002887    43  -88.65406  0.0000
-# OrderColeoptera              0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderDiptera                 0.0000000 0.000000000 88624   -0.01357  0.9892
-# OrderHemiptera               0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderHymenoptera             0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderLepidoptera             0.0000000 0.000000000 88624    0.00181  0.9986
-# OrderNeuroptera              0.0000000 0.000000000 88624    0.17185  0.8636
-# OrderOrthoptera              0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderPsocodea                0.0000000 0.000000000 88624    0.00000  1.0000
-# OrderTrichoptera             0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:year              0.0002365 0.000003425    43   69.04427  0.0000
-# bat.spMMYS:OrderColeoptera   0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:OrderDiptera      0.0000000 0.000000000 88624    0.02493  0.9801
-# bat.spMMYS:OrderHemiptera    0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:OrderHymenoptera  0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:OrderLepidoptera  0.0000000 0.000000000 88624   -0.02263  0.9819
-# bat.spMMYS:OrderNeuroptera   0.0000000 0.000000000 88624   -0.15283  0.8785
-# bat.spMMYS:OrderOrthoptera   0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:OrderPsocodea     0.0000000 0.000000000 88624    0.00000  1.0000
-# bat.spMMYS:OrderTrichoptera  0.0000000 0.000000000 88624    0.00000  1.0000
-
-
-mvi<- lme(MDS1~ bat.sp + 
-            bat.sp*year + 
-            year + Family*bat.sp,
-           random=~1|sampleid, data=bbdf1)
-
-summary(mvi) # This most closely resemebles the ordination figure so I will use this for now. 
-
-anova(miV, mV) # ? weird that they are the same. 
-#   Model df      AIC      BIC  logLik
-# miV     1 24 -5339681 -5339456 2669865
-# mV      2 24 -5339681 -5339456 2669865
-
-
-## Ask Katrine what the best way is to compare model selection for these kinds of NMDS models... 
-
-# anova(m1, m2, m3, m4)
-# 
-# 
-# anova(m1_int, m2_int, m3_int, m4_int)
-
+# Fixed effects:  MDS1 ~ bat.sp + year + Order 
+#                       Value  Std.Error    DF   t-value p-value
+# (Intercept)      -0.1129002 0.02226295 81127 -5.071213  0.0000
+# bat.spMMYS       -0.1889727 0.01979842    42 -9.544833  0.0000
+# year2018         -0.1462955 0.01944356    42 -7.524112  0.0000
+# OrderColeoptera   0.0000000 0.00000000 81127  0.000000  1.0000
+# OrderDiptera      0.0000000 0.00000000 81127 -0.138271  0.8900
+# OrderHymenoptera  0.0000000 0.00000000 81127  0.000000  1.0000
+# OrderLepidoptera  0.0000000 0.00000000 81127  0.196436  0.8443
+# OrderNeuroptera   0.0000000 0.00000000 81127  0.214669  0.8300
+# OrderOrthoptera   0.0000000 0.00000000 81127  0.000000  1.0000
+# OrderPsocodea     0.0000000 0.00000000 81127  0.000000  1.0000
+# OrderTrichoptera  0.0000000 0.00000000 81127  0.000000  1.0000
 
 #Quick visualization of difference between the two species:
 

@@ -11,9 +11,17 @@ library(tidyverse)
 library(lattice)
 library(MASS)
 library(ggplot2)
+library(insight)
+library(tidyverse)
 library(nlme)
+library(broom)
+library(modelsummary)
+library(kableExtra)
+library(gt)
+library(readxl)
+library(xlsx)
 
-remove.packages("lme4")
+# remove.packages("lme4")
 
 ##############################################################
 getwd()
@@ -284,36 +292,66 @@ summary(m4)
 # Number of Observations: 81180
 # Number of Groups: 45 
 
-# -4233461 - m1
-# -4233442 - m2
-# -4233439 - m3 **** 
-# -4218970 - m4
 
-## Do a more formal test between m3 and m4
-anova(m3, m4) # changed method to ML for both to make it possible to compare the two. 
 
-#    Model df      AIC      BIC  logLik   Test  L.Ratio p-value
-# m3     1  4 -4233437 -4233400 2116722                        
-# m4     2  3 -4218970 -4218942 2109488 1 vs 2 14469.21  <.0001
+summary(m3)
+summary(m2)
+summary(m1)
 
-# The null hypothesis states that the population means are all equal. Usually, a significance level (denoted as α or alpha) of 0.05 works well. A significance level of 0.05 indicates a 5% risk of concluding that a difference exists when there is no actual difference.
+### Model validation 
+par(mfrow = c(2, 2))
+plot(m1) 
+plot(m1, type=c("p","smooth"), col.line=1)
 
-# m3 still has the lowest AIC 
-# The null hypothesis has a significant p value so there is strong evidence that the two models are very different... 
+windows()
+par(mfrow = c(2, 2))
+plot(m2)
+plot(m2, type=c("p","smooth"), col.line=1)
 
-m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "REML", data = pa)
+windows()
+par(mfrow = c(2, 2))
+plot(m3)
+plot(m3, type=c("p","smooth"), col.line=1)
+
+# only get one plot and they look the same
+
+```
+
+## Table of model outputs
+```{r message=FALSE, results='asis'}
+library(jtools)
+library(huxtable)
+
+summary(m1)
+summary(m2)
 summary(m3)
 
+fitlist <- list(m1, m2, m3)
+modelsums <- modelsummary(fitlist, statistic = 'p.value', output = "data.frame") 
+modelsums <- modelsummary(fitlist,  statistic = c("t = {statistic}",
+                                   "se = {std.error}",
+                                   "p.value"), output = "data.frame") 
 
+summary(modelsums)
+
+write.xlsx(modelsums, file = file.path(output_today, "allfits_bothspecies_alphamodels.xlsx")) 
+
+export_summs(m1, m2,  model.info = FALSE, model.fit = FALSE)
+```
+
+
+```{r}
 ## Make predictions for m3
 
-bat.sp <- rep( c("MBRA", "MMYS", "MMYS"), each = 27060) # So there is the same number of observations and a similar distribution of MBRA and MMYS. 
+m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "REML", data = pa)
+
+bat.sp <- rep( c("MBRA", "MMYS", "MMYS"), each = 27060) 
+# So there is the same number of observations and a similar distribution of MBRA and MMYS. 
 
 pframe <- data.frame(as.factor(bat.sp)) # 81180 observations 
 pframe <- pframe %>% rename(bat.sp = as.factor.bat.sp.)
 
-library(insight)
-library(tidyverse)
+
 pframe$pred.alpha1 <- get_predicted(m3, newdata = pframe)
 
 
@@ -344,85 +382,250 @@ pframe1 <- dplyr::full_join(pframe_b, pframe_m)# also 81180 observations
 pframe1$year <- as.factor(pframe1$year) 
 
 #summary(pframe1)
-pframe1$pred.alpha1 <- get_predicted(m2, newdata = pframe1)
+pframe1$pred.alpha2 <- get_predicted(m2, newdata = pframe1)
+
+######### Predictions for model m1 
+
+# m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data = pa)
+
+pframe1$pred.alpha1 <- get_predicted(m1, newdata = pframe1)
+
+## Look at predicted values 
+pframe$pred.alpha1 <- as.numeric(pframe$pred.alpha1)
+summary(pframe)
+ #  bat.sp       pred.alpha1   
+ # MBRA:27060   Min.   :14.00  
+ # MMYS:54120   1st Qu.:44.00  
+ #              Median :50.00  
+ #              Mean   :49.62  
+ #              3rd Qu.:59.00  
+ #              Max.   :72.00  
 
 
-## Plot the predictions and the raw data 
 
-batcolors = c("#b3cde0", "#011f4b") 
+pframe1$pred.alpha1 <- as.numeric(pframe1$pred.alpha1) 
+pframe1$pred.alpha2 <- as.numeric(pframe1$pred.alpha2)
+summary(pframe1)
+ #  bat.sp        year        pred.alpha1     pred.alpha2   
+ # MBRA:27060   2017:24805   Min.   :14.00   Min.   :14.00  
+ # MMYS:54120   2018:56375   1st Qu.:44.00   1st Qu.:44.00  
+ #                           Median :50.00   Median :50.00  
+ #                           Mean   :49.62   Mean   :49.62  
+ #                           3rd Qu.:59.00   3rd Qu.:59.00  
+ #                           Max.   :72.00   Max.   :72.00  
 
-predictplot <- ggplot(pframe) +
-  geom_violin(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp)) +
-  geom_boxplot(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp),  alpha = 0.5, color = c("black", "gray")) + 
+
+##########
+## Do qq and residual plots for all 3 models 
+# Table of three models 
+# Report the main effects
+# Choose one figure to describe difference between species, most likely not with year 
+
+##########
+# If the qq plots and residuals are poor - then use a glmer with a poission distribution 
+
+########## If that doesn't work, then it is a negative binomial 
+```
+
+
+```{r}
+
+## For the paper, only plot the raw values 
+mbra2017 <- pa %>% filter(bat.sp == "MBRA" & year == "2017") %>% droplevels() # 3 samples
+mmys2017 <- pa %>% filter(bat.sp == "MMYS" & year == "2017") %>% droplevels() # 12
+
+mbra2018 <- pa %>% filter(bat.sp == "MBRA" & year == "2018") %>% droplevels() # 11 samples
+mmys2018 <- pa %>% filter(bat.sp == "MMYS" & year == "2018") %>% droplevels() # 19 
+
+
+pa <- pa %>% mutate(yearplot = case_when(
+  year == "2017" & bat.sp == "MBRA" ~ "2017, n = 3", 
+  year == "2017" & bat.sp == "MMYS" ~ "2017, n = 12", 
+  year == "2018" & bat.sp == "MBRA" ~ "2018, n = 11", 
+  year == "2018" & bat.sp == "MMYS" ~ "2018, n = 19", 
+  
+))
+
+mbra <- pa %>% filter(bat.sp == "MBRA") %>% droplevels()
+mmys <- pa %>% filter(bat.sp == "MMYS") %>% droplevels()
+
+# For the facet labels 
+bat.labs <- c("M. brandtii", "M. mystacinus")
+names(bat.labs) <- c("MBRA", "MMYS")
+
+
+rawplotmbra <- ggplot(mbra) + 
+  geom_violin(aes(x = yearplot, y= observed.alpha), fill = "#b3cde0") +
+  geom_boxplot(aes(x = yearplot, y= observed.alpha), fill = "#b3cde0",  
+               alpha = 0.5, color = c("black", "black")) + 
   theme_bw() +
   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
                       name = "Bat species") +
-  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
-  xlab("") +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
-  ggtitle("Predicted data") + ylab("Alpha diversity (Observed)")
-predictplot # 
-
-
-## Observed diversity compared between the two bat species 
-rawplot <- ggplot(pa) + 
-  geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
-  geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray")) + 
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
+  scale_x_discrete(labels= 
+                     expression(italic("2017, n = 3"),italic("2018, n = 11"))) +  
   xlab("") + ylab("Alpha diversity (Observed)") +
-  theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
-  ggtitle("Raw data")
-rawplot
-
-m3plots <- cowplot::plot_grid(rawplot, predictplot)
-
-## Now for m2 data 
-
-predictplot <- ggplot(pframe1) +
-  geom_violin(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp)) +
-  geom_boxplot(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
-  xlab("") +
-  theme(text = element_text(size = 15)) +
-  theme(legend.position="none", 
-        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
-  ggtitle("Predicted data") + ylab("Alpha diversity (Observed)") + 
-  facet_wrap(~year)
-predictplot # 
-
-
-## Observed diversity compared between the two bat species 
-rawplot <- ggplot(pa) + 
-  geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
-  geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
-  theme_bw() +
-  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
-                      name = "Bat species") +
-  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
-  xlab("") + ylab("Alpha diversity (Observed)") +
+  ylim(c(0,80)) + 
   theme(strip.background = element_blank()) +
   theme(text = element_text(size = 15)) +
   theme(legend.position="none", 
         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
-  ggtitle("Raw data") + 
-  facet_wrap(~year)
-rawplot
-
-m2plots <- cowplot::plot_grid(rawplot, predictplot, nrow = 2)
+  theme(strip.text.x = element_text(face = "bold.italic")) +
+  ggtitle(expression(italic("M. brandtii")))
+rawplotmbra
 
 
-m2plots
+rawplotmmys<- ggplot(mmys) + 
+  geom_violin(aes(x = yearplot, y= observed.alpha), fill = "#011f4b") +
+  geom_boxplot(aes(x = yearplot, y= observed.alpha), fill = "#011f4b",  alpha = 0.5, color = c("gray", "gray")) + 
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels= 
+                     expression(italic("2017, n = 12"),italic("2018, n = 19"))) +  
+  xlab("") + ylab("Alpha diversity (Observed)") +
+  ylim(c(0,80)) + 
+  theme(strip.background = element_blank()) +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  theme(strip.text.x = element_text(face = "bold.italic"))+
+  ggtitle(expression(italic("M. mystacinus")))
+rawplotmmys
+
+rawplots <- cowplot::plot_grid(rawplotmbra, rawplotmmys, labels = c("a.", "b."))
+rawplots
+
+
+##### Calculate coeffcient of variation for each species 
+#calculate CV
+mbra_cv <- sd(mbra$observed.alpha) / mean(mbra$observed.alpha) * 100
+mbra_cv
+# 26.47408
+
+#display CV
+mmys_cv <- sd(mmys$observed.alpha) / mean(mmys$observed.alpha) * 100
+mmys_cv
+# 24.07862
+
+# ################################################################################
+# ## Plot the predictions and the raw data 
+# 
+# batcolors = c("#b3cde0", "#011f4b") 
+# 
+# predictplot <- ggplot(pframe) +
+#   geom_violin(aes(x = bat.sp, y= pred.alpha1), fill = bat.sp) +
+#   geom_boxplot(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp),  alpha = 0.5, color = c("black", "gray")) + 
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
+#   xlab("") +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Predicted data") + ylab("Alpha diversity (Observed)")
+# predictplot # 
+# 
+# 
+# ## Observed diversity compared between the two bat species 
+# rawplot <- ggplot(pa) + 
+#   geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
+#   geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray")) + 
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
+#   xlab("") + ylab("Alpha diversity (Observed)") +
+#   theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Raw data")
+# rawplot
+# 
+# m3plots <- cowplot::plot_grid(rawplot, predictplot)
+# 
+# ## Now for m2 data 
+# 
+# predictplot <- ggplot(pframe1) +
+#   geom_violin(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp)) +
+#   geom_boxplot(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
+#   xlab("") +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Predicted data") + ylab("Alpha diversity (Observed)") + 
+#   facet_wrap(~year)
+# predictplot # 
+# 
+# 
+# ## Observed diversity compared between the two bat species 
+# rawplot <- ggplot(pa) + 
+#   geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
+#   geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
+#   xlab("") + ylab("Alpha diversity (Observed)") +
+#   theme(strip.background = element_blank()) +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Raw data") + 
+#   facet_wrap(~year)
+# rawplot
+# 
+# m2plots <- cowplot::plot_grid(rawplot, predictplot, nrow = 2)
+# 
+# 
+# m2plots
+# 
+# ##########
+# 
+# ## Now for m2 data 
+# 
+# predictplot <- ggplot(pframe1) +
+#   geom_violin(aes(x = bat.sp, y= pred.alpha2, fill = bat.sp)) +
+#   geom_boxplot(aes(x = bat.sp, y= pred.alpha2, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
+#   xlab("") +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Predicted data") + ylab("Alpha diversity (Observed)") + 
+#   facet_wrap(~year)
+# predictplot # 
+# 
+# 
+# ## Observed diversity compared between the two bat species 
+# rawplot <- ggplot(pa) + 
+#   geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
+#   geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray", "black", "gray")) + 
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
+#   xlab("") + ylab("Alpha diversity (Observed)") +
+#   theme(strip.background = element_blank()) +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Raw data") + 
+#   facet_wrap(~year)
+# rawplot
+# 
+# m2plots <- cowplot::plot_grid(rawplot, predictplot, nrow = 2)
+# 
+# 
+# m2plots
 
 
 ```
