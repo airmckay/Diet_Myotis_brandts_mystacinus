@@ -1,0 +1,393 @@
+---
+title: "Modelling"
+output: html_document
+date: "2023-11-18"
+---
+
+```{r}
+##############################################################
+
+library(tidyverse)
+library(lattice)
+library(MASS)
+library(ggplot2)
+library(nlme)
+
+remove.packages("lme4")
+
+##############################################################
+getwd()
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus"
+
+output <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs"
+
+file.name <- "ModelingAlpha_BetaDiversity"
+
+todays_date <- Sys.Date()
+ 
+dir.name <- str_c(output,"/", file.name, "_", todays_date)
+dir.name
+ 
+output_today <- dir.name
+output_today
+
+dir.create(output_today)
+output_today
+
+pa <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-11-18/Abundance_is_presence_absence_w_Observed_alphadiversity.csv")
+## 81180 obs of 22 vars 
+
+```
+
+
+
+```{r}
+
+# pa$Sample <- as.factor(pa$Sample) 
+# pa$bat.sp <- as.factor(pa$bat.sp) 
+# pa$year <- as.factor(pa$year) 
+# 
+# pa <- pa %>% droplevels()
+# 
+# m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data=pa)
+# 
+# m1
+# # Linear mixed-effects model fit by REML
+# #   Data: pa 
+# #   Log-restricted-likelihood: 2116736
+# #   Fixed: observed.alpha ~ bat.sp * year 
+# #         (Intercept)          bat.spMMYS            year2018 bat.spMMYS:year2018 
+# #           85.848773         -122.847532            9.345352          -10.157055 
+# # 
+# # Random effects:
+# #  Formula: ~1 | Sample
+# #         (Intercept)     Residual
+# # StdDev:    76.62718 1.125037e-12
+# # 
+# # Number of Observations: 81180
+# # Number of Groups: 45 
+# ### Model predicitons 
+# 
+# 
+# interpol <- expand.grid(year = unique(m1$data$year),
+#                         bat.sp = unique(m1$data$bat.sp),
+#                         Sample = unique(m1$data$Sample), 
+#                         observed.alpha = range(pa$observed.alpha))
+# 
+# 
+# interpol$observed.alpha <- predict(m1, interpol, type= "response",
+#                        allow.new.levels=T) ## Check why Y axis is being bizarre
+# summary(interpol)
+# #   year     bat.sp       Sample    observed.alpha   
+#  # 2017:90   MBRA:90   10B    :  4   Min.   :-119.00  
+#  # 2018:90   MMYS:90   11B    :  4   1st Qu.:  38.24  
+#  #                     12B    :  4   Median :  57.09  
+#  #                     13B    :  4   Mean   :  73.02  
+#  #                     14B    :  4   3rd Qu.: 168.00  
+#  #                     15B    :  4   Max.   : 199.00 
+# 
+# library(REEMtree)
+# interpol$observed.alpha <- REEMtree::predict(m1, interpol) ## Check why Y axis is being bizarre
+# 
+# summary(interpol)
+# 
+# interpol1 <- expand.grid(bat.sp = (unique(m2$data$bat.sp))) 
+# 
+# head(interpol1)
+# 
+# interpol1$observed.alpha <- predict(m2, interpol1, type= "response",
+#                        allow.new.levels=T) ## Check why Y axis is being bizarre 
+# 
+# 
+# ## Plot the predictions and the raw data 
+# 
+# predictplot <- ggplot(interpol1) +
+#   geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), color = c("black", "gray")) + 
+#   geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp), alpha = 0.5) +
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
+#   xlab("") +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+#   ggtitle("Predicted data") + ylab("Alpha diversity (Observed)")
+# predictplot # 
+# 
+# 
+# bby_padf$bat.sp <- as.factor(bby_padf$bat.sp)
+# summary(bby_padf$bat.sp)
+# #  MBRA  MMYS 
+# # 25256 55924 
+# 
+# ## Observed diversity compared between the two bat species 
+# rawplot <- plot_richness(bby_pa, x="bat.sp", measures="Observed")+
+#   geom_boxplot(aes(fill = bat.sp), color = c("black", "gray")) + 
+#   geom_violin(aes(fill = bat.sp), alpha = 0.5) +
+#   theme_bw() +
+#   scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+#                       name = "Bat species") +
+#   scale_x_discrete(labels=c("M. brandtii", "M. mystacinus")) +
+#   xlab("") + ylab("Alpha diversity (Observed)") +
+#   theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
+#   theme(text = element_text(size = 15)) +
+#   theme(legend.position="none", 
+#         axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) 
+#   ggtitle("Raw data")
+# rawplot
+# 
+# cowplot::plot_grid(rawplot, predictplot)
+
+```
+
+```{r}
+
+histogram(pa$observed.alpha, breaks=5) 
+histogram(pa$observed.alpha, breaks=10) 
+
+
+#Outliers?              
+dotchart(pa$observed.alpha, 
+         main = "observed.alpha",
+         xlab = "Values of variable",
+         ylab = "Order of the data")       #No extreme outliers
+
+pa$bat.sp <- as.factor(pa$bat.sp)
+pa$year <- as.factor(pa$year)
+pa$Sample<- as.factor(pa$Sample)
+
+str(pa)
+
+bwplot(observed.alpha ~ factor(year) | factor(bat.sp),
+       strip = strip.custom(bg = 'white'),
+       cex = .5,
+       data = pa, xlab = "year",
+       ylab = "observed.alpha", main = "observed.alpha for for M.brandtii and M.mys, in 2017 and 2018",
+       par.settings = list(
+         box.rectangle = list(col = 1),
+         box.umbrella  = list(col = 1),
+         plot.symbol   = list(cex = .5, col = 1)))
+
+#Fit a statistical model
+
+m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data = pa)
+summary(m1)
+
+# Linear mixed-effects model fit by REML
+#   Data: pa 
+#        AIC      BIC  logLik
+#   -4233461 -4233405 2116736
+# 
+# Random effects:
+#  Formula: ~1 | Sample
+#         (Intercept)     Residual
+# StdDev:    76.62718 1.125037e-12
+# 
+# Fixed effects:  observed.alpha ~ bat.sp * year 
+#                          Value Std.Error    DF   t-value p-value
+# (Intercept)           85.84877  1.860296 81135  46.14792   0e+00
+# bat.spMMYS          -122.84753  2.079874    41 -59.06490   0e+00
+# year2018               9.34535  2.098697    41   4.45293   1e-04
+# bat.spMMYS:year2018  -10.15705  2.411665    41  -4.21164   1e-04
+#  Correlation: 
+#                     (Intr) bt.MMYS yr2018
+# bat.spMMYS          -0.894               
+# year2018            -0.886  0.793        
+# bat.spMMYS:year2018  0.771 -0.862  -0.870
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -2.0589277 -0.7452560  0.0000000  0.7073617  2.1599794 
+# 
+# Number of Observations: 81180
+# Number of Groups: 45 
+
+m2 <- lme(observed.alpha ~ bat.sp + year, random= ~1|Sample, data = pa)
+summary(m2)
+# Linear mixed-effects model fit by REML
+#   Data: pa 
+#        AIC      BIC  logLik
+#   -4233442 -4233395 2116726
+# 
+# Random effects:
+#  Formula: ~1 | Sample
+#         (Intercept)     Residual
+# StdDev:     76.6059 1.125153e-12
+# 
+# Fixed effects:  observed.alpha ~ bat.sp + year 
+#                  Value Std.Error    DF    t-value p-value
+# (Intercept)   91.89235  1.183980 81135   77.61306  0.0000
+# bat.spMMYS  -130.40189  1.052918    42 -123.84807  0.0000
+# year2018       1.65346  1.034030    42    1.59904  0.1173
+#  Correlation: 
+#            (Intr) b.MMYS
+# bat.spMMYS -0.711       
+# year2018   -0.686  0.170
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -2.08397533 -0.75780921 -0.01263015  0.70728860  2.12186579 
+# 
+# Number of Observations: 81180
+# Number of Groups: 45 
+
+m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "ML", data = pa)
+summary(m3)
+# 
+# Linear mixed-effects model fit by REML
+#   Data: pa 
+#        AIC      BIC  logLik
+#   -4233439 -4233402 2116724
+# 
+# Random effects:
+#  Formula: ~1 | Sample
+#         (Intercept)     Residual
+# StdDev:    76.59338 1.125164e-12
+# 
+# Fixed effects:  observed.alpha ~ bat.sp 
+#                  Value Std.Error    DF   t-value p-value
+# (Intercept)   93.19147  0.861246 81135  108.2054       0
+# bat.spMMYS  -130.68755  1.037654    43 -125.9452       0
+#  Correlation: 
+#            (Intr)
+# bat.spMMYS -0.83 
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -2.08395514 -0.75780187 -0.01263003  0.69465171  2.12184524 
+# 
+# Number of Observations: 81180
+# Number of Groups: 45 
+
+m4 <- lme(observed.alpha ~ 1, random= ~1|Sample, method = "ML", data = pa)
+summary(m4)
+
+# Linear mixed-effects model fit by REML
+#   Data: pa 
+#        AIC      BIC  logLik
+#   -4218970 -4218942 2109488
+# 
+# Random effects:
+#  Formula: ~1 | Sample
+#         (Intercept)     Residual
+# StdDev:    47.92215 1.230413e-12
+# 
+# Fixed effects:  observed.alpha ~ 1 
+#                Value Std.Error    DF  t-value p-value
+# (Intercept) 3.330636 0.5243628 81135 6.351779       0
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -1.6169524 -0.6121320  0.2194435  0.8027014  2.2290844 
+# 
+# Number of Observations: 81180
+# Number of Groups: 45 
+
+# -4233461 - m1
+# -4233442 - m2
+# -4233439 - m3 **** 
+# -4218970 - m4
+
+## Do a more formal test between m3 and m4
+anova(m3, m4) # changed method to ML for both to make it possible to compare the two. 
+
+#    Model df      AIC      BIC  logLik   Test  L.Ratio p-value
+# m3     1  4 -4233437 -4233400 2116722                        
+# m4     2  3 -4218970 -4218942 2109488 1 vs 2 14469.21  <.0001
+
+# The null hypothesis states that the population means are all equal. Usually, a significance level (denoted as α or alpha) of 0.05 works well. A significance level of 0.05 indicates a 5% risk of concluding that a difference exists when there is no actual difference.
+
+# m3 still has the lowest AIC 
+# The null hypothesis has a significant p value so it may be that the difference we see is purely the difference amongst individuals regardless of species. 
+
+m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "REML", data = pa)
+summary(m3)
+
+
+## Make predictions for m3
+
+bat.sp <- rep( c("MBRA", "MMYS", "MMYS"), each = 27060) # So there is the same number of observations and a similar distribution of MBRA and MMYS. 
+
+pframe <- data.frame(as.factor(bat.sp)) # 81180 observations 
+pframe <- pframe %>% rename(bat.sp = as.factor.bat.sp.)
+
+library(insight)
+library(tidyverse)
+pframe$pred.alpha1 <- get_predicted(m3, newdata = pframe)
+
+
+## Make a similar set of predictions for m1 
+
+table(pa$year, pa$bat.sp)
+  #       MBRA  MMYS
+  # 2017  5412 21648
+  # 2018 19844 34276
+
+# 
+# 19844/5412
+# 19844+5412
+# 25256/4
+
+#27060 obs of mbra, approximately 3.7 as many obs of 2018 samples as 2017 
+# 27060/4 = 6765
+pframe_b <- pframe %>% filter(bat.sp == "MBRA") %>% droplevels() %>% dplyr::select(bat.sp) 
+pframe_b$year <- rep(c("2017", "2018", "2018", "2018", each = 6765))
+
+
+# 34276/21648 = 1.583333 , approximately 2 times as many samples from 2018 as 2017
+
+pframe_m <- pframe %>% filter(bat.sp == "MMYS") %>% droplevels() %>% dplyr::select(bat.sp) 
+pframe_m$year <- rep(c("2017", "2018", "2018", each = 18040))
+
+pframe1 <- dplyr::full_join(pframe_b, pframe_m)# also 81180 observations 
+
+summary(pframe1)
+
+pframe1$pred.alpha1 <- 
+## Plot the predictions and the raw data 
+
+
+batcolors = c("#b3cde0", "#011f4b") 
+
+predictplot <- ggplot(pframe) +
+  geom_violin(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp)) +
+  geom_boxplot(aes(x = bat.sp, y= pred.alpha1, fill = bat.sp),  alpha = 0.5, color = c("black", "gray")) + 
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) + 
+  xlab("") +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  ggtitle("Predicted data") + ylab("Alpha diversity (Observed)")
+predictplot # 
+
+
+## Observed diversity compared between the two bat species 
+rawplot <- ggplot(pa) + 
+  geom_violin(aes(x = bat.sp, y= observed.alpha, fill = bat.sp)) +
+  geom_boxplot(aes(x = bat.sp, y= observed.alpha, fill = bat.sp),  alpha = 0.5, color = c("black", "gray")) + 
+  theme_bw() +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  scale_x_discrete(labels=expression(italic("M. brandtii"), italic("M. mystacinus"))) +
+  xlab("") + ylab("Alpha diversity (Observed)") +
+  theme(strip.background = element_blank(), strip.text.x = element_text(size=0)) +
+  theme(text = element_text(size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=12)) + 
+  ggtitle("Raw data")
+rawplot
+
+cowplot::plot_grid(rawplot, predictplot)
+
+mbra <- psmelt(MBRA)
+mbra$Sample <- as.factor(mbra$Sample)
+levels(mbra$Sample)
+mmys <- psmelt(MMYS)
+mmys$Sample <- as.factor(mmys$Sample)
+levels(mmys$Sample)
+```
+
