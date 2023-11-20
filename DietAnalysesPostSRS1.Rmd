@@ -2,15 +2,19 @@
 title: "DietAnalysesPostSRS1"
 output: html_document
 date: "2023-11-17"
----
----
-title: "Diet_Results_postSRS"
-output: html_document
-date: "2023-09-26"
+header-includes:
+- \usepackage{caption}
+- \captionsetup{font=Large}
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+```{r setup, include=FALSE, }
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(eval=FALSE)
+options(kableExtra_view_html = T)
+options(knitr.table.format = "html") 
+library(knitr)
+library(kableExtra)
 ```
 
 ## Important: 
@@ -432,7 +436,7 @@ bby # lost three taxa
 
 ## Export this phyloseq object so you dont need to recreate it every time!
 
-# saveRDS(bby, file = file.path(output_today, "BatsBugs_Nas_nontargetSamplesRemoved_fixed.RDS")) #18.11.2023
+# saveRDS(bby, file = file.path(output_today, "BatsBugs_Nas_nontargetSamplesRemoved_fixed.RDS")) #19.11.2023
 # output_today
 
 ```
@@ -912,7 +916,7 @@ I think it would be better to use distance matrix that is solely based on presen
 bby_pa <- bby %>% tax_transform("binary")
 bby_pa1 <- as_phyloseqbby_pa 
 
-bby_padf <- psmelt(bby_pa) 
+bby_padf <- psmelt(bby_pa) # Check that this indeed creates a presence/absence dataset
 # 81180 of 20 vars, retains lower taxa descriptions (gooood) 
 
 # Some basic housekeeping
@@ -956,10 +960,9 @@ plot_richness(bby_pa, x="bat.sp", measures="Observed")+
 ## Use a simple model to see if there is any difference in predicted results
 
 
-
 #### Beta diversity 
 ## Different ordination approach 
-https://david-barnett.github.io/microViz/articles/web-only/ordination.html
+# https://david-barnett.github.io/microViz/articles/web-only/ordination.html
 # jac = distance(bby_pa, method = "jaccard", binary = TRUE) 
 # 
 # jac.pcoa = ordinate(bby1, method="PCoA", distance=jac)
@@ -968,7 +971,7 @@ jac1 <- dist_calc(bby_pa, dist = "jaccard", binary = TRUE)
 
 
 ### Ordination - Jaccard - Species 
-bby %>%
+jac <- bby %>%
   tax_transform("binary", rank = "Species") %>%
   dist_calc(dist = "jaccard", binary = TRUE) %>% #
   ord_calc("PCoA") %>%
@@ -982,7 +985,26 @@ bby %>%
   ggside::theme_ggside_void() + 
   theme(legend.position = "none")
 
-### Ordination - Jaccard 
+### Ordination - Bray - Curtis - Species 
+bray <- bby %>%
+  tax_transform("log", rank = "Species") %>%
+  dist_calc(dist = "bray", binary = FALSE) %>% #
+  ord_calc("PCoA") %>%
+  ord_plot(color = "bat.sp", shape = "year", size = 4, alpha = 0.8) +
+  scale_colour_manual(values = batcolors,  aesthetics = c("fill", "colour"), 
+                      name = "Bat species") +
+  stat_ellipse(geom = "polygon", type="t", alpha=0.3, aes(fill =bat.sp)) +
+  theme_bw() +
+  ggside::geom_xsidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::geom_ysidedensity(aes(fill = bat.sp), alpha = 0.5, show.legend = FALSE) +
+  ggside::theme_ggside_void() + 
+  theme(legend.position = "none")
+
+bray
+
+cowplot::plot_grid(jac, bray, labels = c("a.", "b."))
+
+### Ordination - Jaccard - Genus 
 bby %>%
   tax_transform("binary", rank = "Genus") %>%
   dist_calc(dist = "jaccard", binary = TRUE) %>% #
@@ -1013,14 +1035,6 @@ bby %>%
   theme(legend.position = "none")
 
 
-bby_NMDS <- bby %>%
-  tax_transform("binary", rank = "Species") %>%
-  dist_calc(dist = "jaccard", binary = TRUE) %>% #
-  ord_calc("NMDS")
-
-## Make data.frames version of the NMDS and PCoA on the species level 
-
-bby_pjac <- ordinate(bby_pa, "NMDS", "jaccard")
 # Warning messages:
 # 1: In metaMDS(veganifyOTU(physeq), distance, ...) :
 #   stress is (nearly) zero: you may have insufficient data
@@ -1031,7 +1045,7 @@ bby_njac <- ordinate(bby_pa, "PCoA", "jaccard")
 
 
 ### Extract the scores 
-pcoa <- bby %>%
+jacbeta <- bby %>%
   tax_transform("binary", rank = "Species") %>%
   dist_calc(dist = "jaccard", binary = TRUE) %>% #
   ord_calc("PCoA") %>% ord_plot()
@@ -1044,10 +1058,6 @@ pcoa_df$year <- as.factor(pcoa_df$year)
 pa1 <- dplyr::left_join(pa, pcoa_df) # 81180 obs
 summary(pa1)
 
-nmds <- bby %>%
-  tax_transform("binary", rank = "Species") %>%
-  dist_calc(dist = "jaccard", binary = TRUE) %>% #
-  ord_calc("NMDS") %>% ord_plot()
 
 nmds_df <- nmds$data
 nmds_df$year <- as.factor(nmds_df$year)
@@ -1069,123 +1079,197 @@ summary(pa2)
 
 
 
-# Mixed linear model 
+# Permanova and adonis 
 
-https://support.minitab.com/en-us/minitab/18/help-and-how-to/modeling-statistics/anova/how-to/mixed-effects-model/interpret-the-results/key-results/#step-2-determine-whether-the-fixed-effect-terms-significantly-affect-the-response
+https://deneflab.github.io/MicrobeMiseq/demos/mothur_2_phyloseq.html 
 
-```{r, echo = TRUE ,results = 'hide',fig.keep = 'all'}
+```{r, results = "asis"}
 
-### use NMDS1 as the response variable 
-library(nlme)
+grDevices::windows() # for plots in a separate window
+# ------------------------------------------------------------
 
-# simplest model 
-mi <- lme(MDS1 ~ bat.sp, random=~1|Sample, data=pa1)
-summary(mi) # species significant
+pa_scale <- bby %>% tax_transform("binary", rank = "Species")
+jac <- phyloseq::distance(pa_scale, method = "jaccard")
 
-#   Data: pa1 
-#        AIC      BIC  logLik
-#   -4878364 -4878327 2439186
+abun_scale <- bby %>% tax_transform("log", rank = "Species")
+bray <- phyloseq::distance(abun_scale, method = "bray")
+
+
+sampledf <- data.frame(sample_data(bby))
+
+### Homogeneity of dispersion test
+
+jbeta <- betadisper(jac, sampledf$bat.sp)
+permutest(jbeta)
+# Permutation test for homogeneity of multivariate dispersions
+# Permutation: free
+# Number of permutations: 999
 # 
-# Random effects:
-#  Formula: ~1 | Sample
-#         (Intercept)     Residual
-# StdDev:   0.8871849 2.119282e-14
+# Response: Distances
+#           Df   Sum Sq   Mean Sq     F N.Perm Pr(>F)
+# Groups     1 0.004712 0.0047117 2.296    999  0.137
+# Residuals 43 0.088242 0.0020521   
+
+# "This output tells us that our adonis test is significant so we can reject the null hypothesis that our (two bat species) have the same centroid.
 # 
-# Fixed effects:  MDS1 ~ bat.sp 
-#                  Value  Std.Error    DF    t-value p-value
-# (Intercept) -0.2277298 0.01619829 81135 -14.058882       0
-# bat.spMMYS  -0.1636470 0.01951616    43  -8.385205       0
-#  Correlation: 
-#            (Intr)
-# bat.spMMYS -0.83 
+# Additionally, our betadisper results are not significant, meaning we cannot reject the null hypothesis that our groups have the same dispersions. This means we can be more confident that our adonis result is a real result, and not due to differences in group dispersions.
+
+# Further notes: 
+# There is a lot more analysis that can be done here. We could use a distance metric other than Bray-curtis, we could test different grouping variables, or we could create a more complex permanova by testing a model that combines multiple variables. Unfortunately, there are currently no post-hoc tests developed for adonis."
+
+bbeta <- betadisper(bray, sampledf$bat.sp)
+permutest(bbeta)
 # 
-# Standardized Within-Group Residuals:
-#        Min         Q1        Med         Q3        Max 
-# -2.1897666 -0.5762544 -0.1303121  0.4662422  2.2735854 
+# Permutation test for homogeneity of multivariate dispersions
+# Permutation: free
+# Number of permutations: 999
 # 
-# Number of Observations: 81180
-# Number of Groups: 45 
+# Response: Distances
+#           Df   Sum Sq   Mean Sq      F N.Perm Pr(>F)
+# Groups     1 0.003875 0.0038751 0.6277    999  0.434
+# Residuals 43 0.265476 0.0061739 
+
+# Adonis test - bat species only 
+#############################################################
+
+## Jaccard
+j1 <- adonis2(jac ~ bat.sp, data = sampledf)
+# Permutation test for adonis under reduced model
+# Terms added sequentially (first to last)
+# Permutation: free
+# Number of permutations: 999
+# 
+# adonis2(formula = jac ~ bat.sp, data = sampledf)
+#          Df SumOfSqs      R2      F Pr(>F)  
+# bat.sp    1   0.6495 0.03325 1.4791  0.011 *
+# Residual 43  18.8825 0.96675                
+# Total    44  19.5320 1.00000                
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+## Bray - Curtis 
+j2 <- adonis2(bray ~ bat.sp, data = sampledf)
+# Permutation test for adonis under reduced model
+# Terms added sequentially (first to last)
+# Permutation: free
+# Number of permutations: 999
+# 
+# adonis2(formula = bray ~ bat.sp, data = sampledf)
+#          Df SumOfSqs      R2     F Pr(>F)  
+# bat.sp    1   0.6134 0.03434 1.529  0.034 *
+# Residual 43  17.2509 0.96566               
+# Total    44  17.8644 1.00000               
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# 
+# # plot(allEffects(m1), type = "response")
+# # plot(allEffects(m2), type = "response")
+# # plot(allEffects(m3), type = "response")
+# 
+# plot(allEffects(miv), type = "response")
+# plot(allEffects(mv), type = "response")
+
+# Adonis test - bat species and year
+############################################################
+
+## Jaccard
+j3 <- adonis2(jac ~ bat.sp + year, data = sampledf)
+# Permutation test for adonis under reduced model
+# Terms added sequentially (first to last)
+# Permutation: free
+# Number of permutations: 999
+# 
+# adonis2(formula = jac ~ bat.sp + year, data = sampledf)
+#          Df SumOfSqs      R2      F Pr(>F)   
+# bat.sp    1   0.6495 0.03325 1.4933  0.004 **
+# year      1   0.6157 0.03152 1.4156  0.015 * 
+# Residual 42  18.2668 0.93523                 
+# Total    44  19.5320 1.00000                 
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+## Bray - Curtis 
+b1 <- adonis2(bray ~ bat.sp + year, data = sampledf)
+# Permutation test for adonis under reduced model
+# Terms added sequentially (first to last)
+# Permutation: free
+# Number of permutations: 999
+# 
+# adonis2(formula = bray ~ bat.sp + year, data = sampledf)
+#          Df SumOfSqs      R2      F Pr(>F)  
+# bat.sp    1   0.6134 0.03434 1.5512  0.037 *
+# year      1   0.6415 0.03591 1.6222  0.030 *
+# Residual 42  16.6094 0.92975                
+# Total    44  17.8644 1.00000                
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
 
 
-# + year
-mii <- lme(MDS1~bat.sp + year, random=~1|Sample, data=pa1)
-summary(mii) # species and year significant 
-# Linear mixed-effects model fit by REML
-#   Data: pa1 
-#        AIC      BIC  logLik
-#   -4878413 -4878366 2439211
+# Adonis test - bat species and year and the interaction 
+############################################################
+
+## Jaccard
+b2 <- adonis2(jac ~ bat.sp + year + bat.sp*year, data = sampledf)
+# Permutation test for adonis under reduced model
+# Terms added sequentially (first to last)
+# Permutation: free
+# Number of permutations: 999
 # 
-# Random effects:
-#  Formula: ~1 | Sample
-#         (Intercept)     Residual
-# StdDev:   0.9036295 2.118537e-14
+# adonis2(formula = jac ~ bat.sp + year + bat.sp * year, data = sampledf)
+#             Df SumOfSqs      R2      F Pr(>F)   
+# bat.sp       1   0.6495 0.03325 1.5117  0.004 **
+# year         1   0.6157 0.03152 1.4329  0.010 **
+# bat.sp:year  1   0.6511 0.03333 1.5154  0.010 **
+# Residual    41  17.6157 0.90189                 
+# Total       44  19.5320 1.00000                 
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+## Bray - Curtis 
+b3 <- adonis2(bray ~ bat.sp + year + bat.sp*year, data = sampledf)
+# Permutation test for adonis under reduced model
+# Terms added sequentially (first to last)
+# Permutation: free
+# Number of permutations: 999
 # 
-# Fixed effects:  MDS1 ~ bat.sp + year 
-#                  Value  Std.Error    DF   t-value p-value
-# (Intercept) -0.1129993 0.02226256 81135 -5.075757       0
-# bat.spMMYS  -0.1889463 0.01979818    42 -9.543624       0
-# year2018    -0.1460407 0.01944302    42 -7.511212       0
-#  Correlation: 
-#            (Intr) b.MMYS
-# bat.spMMYS -0.711       
-# year2018   -0.686  0.170
-# 
-# Standardized Within-Group Residuals:
-#        Min         Q1        Med         Q3        Max 
-# -2.2219793 -0.5843177 -0.1408389  0.4506845  2.2639034 
-# 
-# Number of Observations: 81180
-# Number of Groups: 45 
+# adonis2(formula = bray ~ bat.sp + year + bat.sp * year, data = sampledf)
+#             Df SumOfSqs      R2      F Pr(>F)  
+# bat.sp       1   0.6134 0.03434 1.5776  0.030 *
+# year         1   0.6415 0.03591 1.6498  0.027 *
+# bat.sp:year  1   0.6671 0.03734 1.7157  0.022 *
+# Residual    41  15.9423 0.89241                
+# Total       44  17.8644 1.00000                
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-miii <- lme(MDS1~bat.sp + year + Order, random=~1|Sample, data=pa1)
-summary(miii)
-#   Data: pa1 
-#        AIC      BIC  logLik
-#   -4877860 -4877739 2438943
-# 
-# Random effects:
-#  Formula: ~1 | Sample
-#         (Intercept)     Residual
-# StdDev:   0.9036943 2.118562e-14
-# 
-# Fixed effects:  MDS1 ~ bat.sp + year + Order 
-#                       Value  Std.Error    DF   t-value p-value
-# (Intercept)      -0.1129002 0.02226295 81127 -5.071213  0.0000
-# bat.spMMYS       -0.1889727 0.01979842    42 -9.544833  0.0000
-# year2018         -0.1462955 0.01944356    42 -7.524112  0.0000
-# OrderColeoptera   0.0000000 0.00000000 81127  0.000000  1.0000
-# OrderDiptera      0.0000000 0.00000000 81127 -0.138271  0.8900
-# OrderHymenoptera  0.0000000 0.00000000 81127  0.000000  1.0000
-# OrderLepidoptera  0.0000000 0.00000000 81127  0.196436  0.8443
-# OrderNeuroptera   0.0000000 0.00000000 81127  0.214669  0.8300
-# OrderOrthoptera   0.0000000 0.00000000 81127  0.000000  1.0000
-# OrderPsocodea     0.0000000 0.00000000 81127  0.000000  1.0000
-# OrderTrichoptera  0.0000000 0.00000000 81127  0.000000  1.0000
 
-#Quick visualization of difference between the two species:
+#################################################################
 
-plot(allEffects(m1), type = "response")
-plot(allEffects(m2), type = "response")
-plot(allEffects(m3), type = "response")
+library(modelsummary)
+library(kableExtra)
+library(gt)
+library(readxl)
+library(xlsx)
+library(jtools)
+library(huxtable)
+library(LaTeZ)
 
-plot(allEffects(miv), type = "response")
-plot(allEffects(mv), type = "response")
 
-# Very little difference between years 
+fitlist <- list(j1, j2, j3, b1, b2, b3)
 
-# https://rdrr.io/cran/sjPlot/f/vignettes/plot_marginal_effects.Rmd
 
-#plotting marginal effects
-#plot_model(mod1, type = "pred", terms = "bat.sp")
-# plot_model(m3, type = "eff", terms = "bat.sp")
+kbl(j1, digits = 2, format = "html")
+kbl(j2, digits = 2, format = "html")
+kbl(j3, digits = 2, format = "html")
+
+kbl(fitlist,digits = 2, format = "html" )
 
 ```
 
 
 
-### Next steps: 
-- Proper diversity index plots / table 
-- Pros / cons of PCA, Pcoa and NMDS? 
-- Model predictions of NLME model 
+
 
 
