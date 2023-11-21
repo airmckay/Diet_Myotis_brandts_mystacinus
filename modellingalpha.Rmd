@@ -336,7 +336,7 @@ summary(modelsums)
 
 write.xlsx(modelsums, file = file.path(output_today, "allfits_bothspecies_alphamodels.xlsx")) 
 
-export_summs(m1, m2,  model.info = FALSE, model.fit = FALSE)
+
 ```
 
 

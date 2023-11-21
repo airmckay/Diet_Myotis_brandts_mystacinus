@@ -1050,22 +1050,10 @@ jacbeta <- bby %>%
   dist_calc(dist = "jaccard", binary = TRUE) %>% #
   ord_calc("PCoA") %>% ord_plot()
 
-pcoa_df <- pcoa$data
-pcoa_df$year <- as.factor(pcoa_df$year)
 
 ## combine with the dataset that has alpha diversity 
 
-pa1 <- dplyr::left_join(pa, pcoa_df) # 81180 obs
-summary(pa1)
 
-
-nmds_df <- nmds$data
-nmds_df$year <- as.factor(nmds_df$year)
-
-## combine with the dataset that has alpha diversity 
-
-pa2 <- dplyr::left_join(pa, nmds_df) # 81180 obs
-summary(pa2)
 
 
 # 19.11.2023 
@@ -1133,7 +1121,8 @@ permutest(bbeta)
 #############################################################
 
 ## Jaccard
-j1 <- adonis2(jac ~ bat.sp, data = sampledf)
+j3 <- adonis2(jac ~ bat.sp, data = sampledf)
+j3
 # Permutation test for adonis under reduced model
 # Terms added sequentially (first to last)
 # Permutation: free
@@ -1148,7 +1137,8 @@ j1 <- adonis2(jac ~ bat.sp, data = sampledf)
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 ## Bray - Curtis 
-j2 <- adonis2(bray ~ bat.sp, data = sampledf)
+b3 <- adonis2(bray ~ bat.sp, data = sampledf)
+b3
 # Permutation test for adonis under reduced model
 # Terms added sequentially (first to last)
 # Permutation: free
@@ -1174,7 +1164,8 @@ j2 <- adonis2(bray ~ bat.sp, data = sampledf)
 ############################################################
 
 ## Jaccard
-j3 <- adonis2(jac ~ bat.sp + year, data = sampledf)
+j2 <- adonis2(jac ~ bat.sp + year, data = sampledf)
+j2
 # Permutation test for adonis under reduced model
 # Terms added sequentially (first to last)
 # Permutation: free
@@ -1190,7 +1181,8 @@ j3 <- adonis2(jac ~ bat.sp + year, data = sampledf)
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 ## Bray - Curtis 
-b1 <- adonis2(bray ~ bat.sp + year, data = sampledf)
+b2 <- adonis2(bray ~ bat.sp + year, data = sampledf)
+b2
 # Permutation test for adonis under reduced model
 # Terms added sequentially (first to last)
 # Permutation: free
@@ -1211,7 +1203,8 @@ b1 <- adonis2(bray ~ bat.sp + year, data = sampledf)
 ############################################################
 
 ## Jaccard
-b2 <- adonis2(jac ~ bat.sp + year + bat.sp*year, data = sampledf)
+j1 <- adonis2(jac ~ bat.sp + year + bat.sp*year, data = sampledf)
+j1
 # Permutation test for adonis under reduced model
 # Terms added sequentially (first to last)
 # Permutation: free
@@ -1228,7 +1221,8 @@ b2 <- adonis2(jac ~ bat.sp + year + bat.sp*year, data = sampledf)
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 ## Bray - Curtis 
-b3 <- adonis2(bray ~ bat.sp + year + bat.sp*year, data = sampledf)
+b1 <- adonis2(bray ~ bat.sp + year + bat.sp*year, data = sampledf)
+b1
 # Permutation test for adonis under reduced model
 # Terms added sequentially (first to last)
 # Permutation: free
@@ -1264,7 +1258,35 @@ kbl(j1, digits = 2, format = "html")
 kbl(j2, digits = 2, format = "html")
 kbl(j3, digits = 2, format = "html")
 
-kbl(fitlist,digits = 2, format = "html" )
+kbl(fitlist,digits = 2, format = "html", booktabs = T, caption.short = T)
+
+fitlist %>%
+  kbl(booktabs = TRUE) %>%
+  kable_paper(full_width = FALSE) %>% 
+  add_header_above()
+
+
+## What percentage of each bats diet is Diptera or Lepidoptera? 
+
+mbra <- psmelt(MBRA)
+dim(mbra)
+# 9240   20
+table(mbra$Order)
+    # Diptera Hymenoptera Lepidoptera  Neuroptera Trichoptera 
+    #    4830         322        3402         588          98 
+
+# 4830/9240 = 0.5227273 # Diptera
+# 3402/9240 = 0.3681818 # Lepidoptera
+
+mmys <- psmelt(MMYS)
+dim(mmys)
+# 39525    20
+table(mmys$Order)
+    # Araneae  Coleoptera     Diptera Hymenoptera Lepidoptera  Neuroptera  Orthoptera    Psocodea Trichoptera 
+    #     248         124       22506          93       14570        1302         186         124         372 
+
+# 22506/39525 # 0.5694118 Diptera
+# 14570/39525 # 0.3686275 Lepidoptera 
 
 ```
 
