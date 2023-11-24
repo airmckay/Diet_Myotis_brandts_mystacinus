@@ -751,8 +751,71 @@ bbydf <- bbydf %>% droplevels()
 
 bbydf <- bbydf %>% mutate(across( c(Sample, bat.sp, Order, Family, Genus, Species), factor)) 
 str(bbydf)
+summary(bbydf)
 
+levels(bbydf$Sample)
+levels(bbydf$Species)
+
+
+## Number of unique samples and dates per year
+
+b17 <- bbydf %>% filter(year == 2017) %>% droplevels() # 15 samples
+b17$fdate <- as.factor(b17$date) # 4 distinct nights (many missing)
+
+b18 <- bbydf %>% filter(year == 2018) %>% droplevels() # 30 samples 
+b18$fdate <- as.factor(b18$date) # 7 distinct nights 
+
+## Number of unique samples per year per bat species 
+B17 <- bbydf %>% filter(year == 2017 & bat.sp == "MBRA") %>% droplevels() 
+# 3 samples
+levels(B17$Sample)
+# "1B" "3B" "4B"
+
+
+B18 <- bbydf %>% filter(year == 2018 & bat.sp == "MBRA") %>% droplevels() 
+# 11 samples 
+levels(B18$Sample)
+# "33B" "35B" "36A" "37B" "38B" "39B" "40A" "41B" "42B" "43B" "44B"
+
+M17 <- bbydf %>% filter(year == 2017 & bat.sp == "MMYS") %>% droplevels() 
+# 12 samples
+levels(M17$Sample)
+# "10B" "11B" "12B" "13B" "14B" "15B" "16B" "17B" "5B"  "7B"  "8B"  "9B" 
+
+M18 <- bbydf %>% filter(year == 2018 & bat.sp == "MMYS") %>% droplevels() 
+# 19 samples 
+levels(M18$Sample)
+#  [1] "32B" "34A" "47B" "48A" "49B" "50B" "51B" "54A" "56B" "57B" "58B" "59A" "60B"
+# [14] "61A" "62B" "63A" "64A" "65B" "66B"
 # How many prey taxa for MBRA and MMYS? 
+
+
+## What percentage of each bats diet is Diptera or Lepidoptera? 
+
+mbra <- psmelt(MBRA)
+dim(mbra)
+# 9240   20
+table(mbra$Order)
+    # Diptera Hymenoptera Lepidoptera  Neuroptera Trichoptera 
+    #    4830         322        3402         588          98 
+
+# 4830/9240 = 0.5227273 # Diptera
+# 3402/9240 = 0.3681818 # Lepidoptera
+
+mbra$Species <- as.factor(mbra$Species) # 66 levels 
+
+mmys <- psmelt(MMYS)
+dim(mmys)
+# 39525    20
+table(mmys$Order)
+    # Araneae  Coleoptera     Diptera Hymenoptera Lepidoptera  Neuroptera  Orthoptera    Psocodea Trichoptera 
+    #     248         124       22506          93       14570        1302         186         124         372 
+
+# 22506/39525 # 0.5694118 Diptera
+# 14570/39525 # 0.3686275 Lepidoptera 
+
+mmys$Species <- as.factor(mmys$Species) # 126 levels 
+
 
 ## MBRA
 batsbugszB <- batsbugszB %>% mutate(across( c(Sample, bat.sp, BatSpecies, Order, Family, Genus, Species), factor)) 
@@ -824,6 +887,7 @@ bby %>%
 
 
 ## Separate iris plots for each bat species, side by side: 
+## clr = log ratio transformation
 MBRA %>% 
   tax_transform(trans = "clr", rank = "Order") %>% 
   ord_calc() %>% 
@@ -1266,27 +1330,7 @@ fitlist %>%
   add_header_above()
 
 
-## What percentage of each bats diet is Diptera or Lepidoptera? 
 
-mbra <- psmelt(MBRA)
-dim(mbra)
-# 9240   20
-table(mbra$Order)
-    # Diptera Hymenoptera Lepidoptera  Neuroptera Trichoptera 
-    #    4830         322        3402         588          98 
-
-# 4830/9240 = 0.5227273 # Diptera
-# 3402/9240 = 0.3681818 # Lepidoptera
-
-mmys <- psmelt(MMYS)
-dim(mmys)
-# 39525    20
-table(mmys$Order)
-    # Araneae  Coleoptera     Diptera Hymenoptera Lepidoptera  Neuroptera  Orthoptera    Psocodea Trichoptera 
-    #     248         124       22506          93       14570        1302         186         124         372 
-
-# 22506/39525 # 0.5694118 Diptera
-# 14570/39525 # 0.3686275 Lepidoptera 
 
 ```
 
