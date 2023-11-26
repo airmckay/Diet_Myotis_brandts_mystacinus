@@ -66,8 +66,8 @@ dir.create(output_today)
 output_today
 
 
-preybats <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-26/bats_abundance_prevalence_Separate_then_combined.csv")
-#51506 obs of 23 variables 
+preybats <- read.csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-11-26/bats_abundance_prevalence_Separate_then_combined.csv")
+# 48765 obs of 23 variables 
 
 ```
 
@@ -111,12 +111,20 @@ swbugs1 <- swbugs %>%
   dplyr::select(Vetenskapligt.namn, Landskapstyp, RedListCategory) %>% 
   dplyr::rename(Species = Vetenskapligt.namn, habitat = Landskapstyp, status = RedListCategory) 
 
+## Make sure names are unique and remove any taxa that have no habitat info 
+
+swbugs2 <- swbugs1 %>% filter(habitat != "") 
+# 15219
+swbugs3 <- distinct(swbugs2)
+# 11998
+
 # swbugsh <- swbugs1 %>% filter(habitat != "") 
 # summary(swbugsh) #  15219 obs that have some habitat data 
 
 
 ## Combine with bat data 
-prey <- left_join(preybats, swbugs1, by = "Species", relationship = "many-to-many") ## 63731 obs (now more than batsbugsZBM..) 
+prey <- dplyr::left_join(preybats, swbugs3, by = "Species") 
+## 48765 obs 
 prey <- prey %>% mutate(habitat = replace_na(habitat, "Unknown"))
 
 ## what kind of habitats are included?
@@ -124,13 +132,14 @@ test <- prey %>% mutate(habitat = factor(habitat))
 levels(test$habitat)
 
 ## check if there are any taxa for which both abundance and prevalence are zero 
-prey_fix <- subset(prey, prey$Prevalence != 0 & prey$TotalAbundance != 0) # 61407 as well - Nope, good!  
+prey_fix <- prey %>% dplyr::filter(Prevalence != 0 & TotalAbundance != 0) 
+# 48765 as well - Nope, good!  
 
 
-prey0 <- prey_fix %>% filter(habitat == "Unknown") # 21548 obs for which habitat is unknown 
+prey0 <- prey_fix %>% filter(habitat == "Unknown")
+# 24516 obs for which habitat is unknown 
 
 ## How much of this is Hymenoptera? 
-
 preyH <- prey0 %>% filter(Order == "Hymenoptera") %>% distinct(Species) ## 3 obs ... too generalize taxa to fix  
 
 ## Check to see what taxa this includes 
@@ -187,7 +196,7 @@ prey1 <- preyx  %>%
   TRUE ~ 0)) 
 
 # write.csv(prey1, file = file.path(output_today, "BatPreyDatawHabitat.csv")) 
-# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-09-21"
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/Nittedal_modeling pt1_2023-11-26"
 
   
 
@@ -205,50 +214,75 @@ prey1 <- preyx  %>%
   
   ## 63731 prey items 
 
-# p <- ggplot() + 
-#   geom_count(data = prey1, aes(x = Agriculture, y = Family, size = Prevalence), alpha = 0.5, color = "#ff9700") +
-#   geom_count(data = prey1, aes(x = Fresh_water, y = Family, size = Prevalence), alpha = 0.5, color = "#0080ff") +
-#   geom_count(data = prey1, aes(x = Forest, y = Family, size = Prevalence), alpha = 0.5, color = "forestgreen") +
-#   geom_count(data = prey1, aes(x = Wetland, y = Family, size = Prevalence), alpha = 0.5, color = "#3232a2") + 
-#   geom_count(data = prey1, aes(x = Mountain, y = Family, size = Prevalence), alpha = 0.5, color = "brown") + 
-#   geom_count(data = prey1, aes(x = Urban, y = Family, size = Prevalence), alpha = 0.5, color = "#8f6e98") + 
-#   geom_count(data = prey1, aes(x = Coastal, y = Family, size = Prevalence), alpha = 0.5, color = "salmon") + 
-#   geom_count(data = prey1, aes(x = Unknown, y = Family, size = Prevalence), alpha = 0.5, color = "black") + 
-#   facet_wrap(~BatSpecies) + 
+p <- ggplot() +
+  geom_count(data = prey1, aes(x = Agriculture, y = Family, size = Prevalence), alpha = 0.5, color = "#ff9700") +
+  geom_count(data = prey1, aes(x = Fresh_water, y = Family, size = Prevalence), alpha = 0.5, color = "#0080ff") +
+  geom_count(data = prey1, aes(x = Forest, y = Family, size = Prevalence), alpha = 0.5, color = "forestgreen") +
+  geom_count(data = prey1, aes(x = Wetland, y = Family, size = Prevalence), alpha = 0.5, color = "#3232a2") +
+  geom_count(data = prey1, aes(x = Mountain, y = Family, size = Prevalence), alpha = 0.5, color = "brown") +
+  geom_count(data = prey1, aes(x = Urban, y = Family, size = Prevalence), alpha = 0.5, color = "#8f6e98") +
+  geom_count(data = prey1, aes(x = Coastal, y = Family, size = Prevalence), alpha = 0.5, color = "salmon") +
+  geom_count(data = prey1, aes(x = Unknown, y = Family, size = Prevalence), alpha = 0.5, color = "black") +
+  facet_wrap(~BatSpecies) +
+  theme(strip.text = element_text(face = "italic")) +
+    theme(
+  panel.background = element_rect(fill = "white",
+                                colour = "white",
+                                size = 0.5, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "#7F7F7F"),
+  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "#7F7F7F")) +
+  xlab("") + ylab("") +
+  scale_size_continuous(range = c(4, 12)) +
+  theme(axis.text.x=element_blank(), 
+        axis.ticks.x= element_blank()) +
+  theme(text = element_text(size = 20)) + 
+  xlim(c(1,8)) +
+  theme(legend.position = "none")
+
+p
+
+
+## Presence absence rather than prevalence - not terrible informative
+# p <- ggplot() +
+#   geom_point(data = prey1, aes(x = Agriculture, y = Family), 
+#              size = 3, alpha = 0.5, color = "#ff9700") +
+#   geom_point(data = prey1, aes(x = Fresh_water, y = Family), 
+#              size = 3, alpha = 0.5, color = "#0080ff") +
+#   geom_point(data = prey1, aes(x = Forest, y = Family), 
+#              size = 3, alpha = 0.5, color = "forestgreen") +
+#   geom_point(data = prey1, aes(x = Wetland, y = Family), 
+#              size = 3, alpha = 0.5, color = "#3232a2") +
+#   geom_point(data = prey1, aes(x = Mountain, y = Family), 
+#              size = 3, alpha = 0.5, color = "brown") +
+#   geom_point(data = prey1, aes(x = Urban, y = Family), 
+#              size = 3, alpha = 0.5, color = "#8f6e98") +
+#   geom_point(data = prey1, aes(x = Coastal, y = Family), 
+#              size = 3, alpha = 0.5, color = "salmon") +
+#   geom_point(data = prey1, aes(x = Unknown, y = Family), 
+#              size = 3, alpha = 0.5, color = "black") +
+#   facet_wrap(~BatSpecies) +
 #     theme(
 #   panel.background = element_rect(fill = "white",
 #                                 colour = "white",
 #                                 size = 0.5, linetype = "solid"),
 #   panel.grid.major = element_line(size = 0.5, linetype = 'solid',
-#                                 colour = "#7F7F7F"), 
+#                                 colour = "#7F7F7F"),
 #   panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
-#                                 colour = "#7F7F7F")) + 
-#   xlab("") + ylab("") + 
+#                                 colour = "#7F7F7F")) +
+#   xlab("") + ylab("") +
 #   scale_size_continuous(range = c(5, 12)) +
-#   theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
-#   theme(text = element_text(size = 20)) + xlim(c(1,8)) #+
+#   theme(axis.text.x=element_blank(), 
+#         axis.ticks.x= element_blank()) +
+#   theme(text = element_text(size = 20)) + 
+#   xlim(c(1,8)) +
+#   theme(legend.position = "bottom")
+# 
+# p
 
 
-p <- ggplot() + 
-  geom_count(data = prey1, aes(x = Agriculture, y = Species, size = Prevalence), alpha = 0.5, color = "#ff9700") +
-  geom_count(data = prey1, aes(x = Fresh_water, y = Species, size = Prevalence), alpha = 0.5, color = "#0080ff") +
-  geom_count(data = prey1, aes(x = Forest, y = Species, size = Prevalence), alpha = 0.5, color = "forestgreen") +
-  geom_count(data = prey1, aes(x = Wetland, y = Species, size = Prevalence), alpha = 0.5, color = "#3232a2") + 
-  geom_count(data = prey1, aes(x = Mountain, y = Species, size = Prevalence), alpha = 0.5, color = "brown") + 
-  geom_count(data = prey1, aes(x = Urban, y = Species, size = Prevalence), alpha = 0.5, color = "#8f6e98") + 
-  geom_count(data = prey1, aes(x = Coastal, y = Species, size = Prevalence), alpha = 0.5, color = "salmon") + 
-  geom_count(data = prey1, aes(x = Unknown, y = Species, size = Prevalence), alpha = 0.5, color = "black") + 
-  facet_wrap(BatSpecies ~ Order, nrow = 3) + 
-  theme_bw() + 
-  xlab("") + ylab("") + 
-  scale_size_continuous(range = c(5, 12)) +
-  theme(axis.text.y=element_blank(), axis.ticks.y= element_blank()) +
-  theme(axis.text.x=element_blank(), axis.ticks.x= element_blank()) +
-  theme(text = element_text(size = 20)) + xlim(c(1,8)) + 
-  theme(legend.position = "none") + coord_flip() 
-  
 
-p # Not possible to see nuanced differences without with Prevalence, but it is more obvious with relative abundance. 
 
 # # Prevalence of prey items related back to habitat type - Order 
 # p <- ggplot() + 
