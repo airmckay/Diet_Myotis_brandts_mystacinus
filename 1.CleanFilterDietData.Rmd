@@ -83,7 +83,7 @@ getwd()
 
 output <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs"
 
-file.name <- "CleanFilterDietData"
+file.name <- "1.CleanFilterDietData"
 
 todays_date <- Sys.Date()
  
@@ -438,6 +438,6 @@ bby # lost three taxa
 ## Export this phyloseq object 
 
 # saveRDS(bby, file = file.path(output_today, "BatsBugs_Nas_nontargetSamplesRemoved_fixed.RDS")) #01.12.2023
-#C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/CleanFilterDietData_2023-12-01
+#C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs/1.CleanFilterDietData_2023-12-01
 ```
 
