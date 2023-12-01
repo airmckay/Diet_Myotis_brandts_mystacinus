@@ -1,0 +1,94 @@
+---
+title: "1.CleanFilterDietData"
+output: html_document
+date: "2023-12-01"
+---
+
+
+```{r setup, include=FALSE, }
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(eval=FALSE)
+options(kableExtra_view_html = T)
+options(knitr.table.format = "html") 
+library(knitr)
+library(kableExtra)
+```
+
+## Important: 
+** The data is already normalized via SRS (scaling with ranked subsampling)
+
+This mark down builds on the work flow established in "Diet results post SRS.Rmd" after getting feedback from FH. 
+
+### Prepare work space and load packages
+
+```{r setup, include=FALSE}
+
+##############################################################
+library(rlang)
+library(cowplot)
+library(tidyverse) #
+library(readxl) #
+library(iNEXT) # 
+library(vegan) #
+library(reshape2) 
+library(ggpubr) # 
+library(cowplot) # 
+library(devtools) #
+library(phyloseq)
+library(plyr)
+library(Rcpp)
+library(vctrs)
+library(metagMisc)
+library(lme4)
+library(DHARMa)
+library(sjPlot)
+library(effects)
+library(qiime2R)
+library(BiocManager)
+library(patchwork)
+library(microViz)
+library(beepr)
+library(microViz)
+library(mixOmics)
+library(miaTime)
+library(miaViz)
+library(ade4)
+library(pals)
+library(RColorBrewer)
+library(MetBrewer)
+library(MASS)
+library(knitr)
+library(kableExtra)
+library(colorBlindness)
+library(devtools) 
+library(speedyseq)
+library(microbiome)
+library(microbiomer)
+library(microbiomeutilities)
+library(qiime2R)
+library(netresponse)
+library(rstatix)
+library(vegan)
+library(picante)
+
+
+##############################################################
+getwd()
+# "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/Documents/1. PhD_Main/GitHub_link/Nittedal/Diet_Myotis_brandts_mystacinus"
+
+output <- "C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/1. Nittedal 2018-2020/Nittedal_Main/Analyses/Outputs"
+
+file.name <- "CleanFilterDietData"
+
+todays_date <- Sys.Date()
+ 
+dir.name <- str_c(output,"/", file.name, "_", todays_date)
+dir.name
+ 
+output_today <- dir.name
+output_today
+
+dir.create(output_today)
+output_today
+
+```

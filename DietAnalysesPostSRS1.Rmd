@@ -555,8 +555,10 @@ batsbugszM$BatSpecies <- "M. mystacinus" #
 batsbugszBM <- dplyr::full_join(batsbugszM, batsbugszB)
 summary(batsbugszBM) # 51506 rows 
 
-#write.csv(batsbugszBM, file = file.path(output_today, "bats_abundance_prevalence_Separate_then_combined.csv")) 
-# 17.11.2023
+# write.csv(batsbugszBM, file = file.path(output_today, "bats_abundance_prevalence_Separate_then_combined.csv"))
+# # 26.11.2023
+output_today
+
 
 mdf <- ps_melt(MMYS) #39525
 bdf <- ps_melt(MBRA) #9240
