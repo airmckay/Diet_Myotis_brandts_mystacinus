@@ -110,7 +110,6 @@ bby
 
 ```{r,  unaggregated_summaries, results = "asis", echo = FALSE}
 
-
 ######################################################
 ### Myotis brandtii  ### 
 ######################################################
@@ -248,6 +247,33 @@ bdf <- ps_melt(MBRA) #9240
 # cowplot::plot_grid(pB, pM) +
 #   scale_colour_brewer(palette="Set1") +
 #   theme(text = element_text(size = 20))
+
+## What samples are found in one species but not the other? 
+
+comp <- batsbugszBM %>% group_by(bat.sp, Species) %>% dplyr::summarize(sum = sum(TotalAbundance)) %>% mutate(Species = factor(Species), bat.sp = factor(bat.sp)) # 192 obs (156 distinct levels, so there are at least 36 prey that overlap) 
+
+comp1 <- comp %>% group_by(Species) %>% dplyr::summarize(bats = list(bat.sp))
+comp2 <- as.data.frame(comp1)
+comp2$bats <- as.character(comp2$bats)
+table(comp2$bats) # mbra = 1, mmys = 2
+ #  1 1:2   2 
+ # 30  36  90
+
+comp2$bats <- str_replace(comp2$bats, "1:2", "Both")
+comp2$bats <- str_replace(comp2$bats, "1", "M. brandtii")
+comp2$bats <- str_replace(comp2$bats, "2", "M. mystacinus")
+
+
+batsbugszBM$Species <- factor(batsbugszBM$Species)
+preytaxa <- batsbugszBM %>% select(Species, Order) %>% distinct() 
+
+comp3 <- dplyr::left_join(comp2, preytaxa)
+
+comp4 <- comp3 %>% select(order(colnames(comp3)))
+com4 <- comp4 %>% arrange(Order)
+
+com4 %>% kbl() 
+
 
 ```
 
@@ -481,11 +507,16 @@ table(mmys$Order)
 
 # 22506/39525 # 0.5694118 Diptera
 # 14570/39525 # 0.3686275 Lepidoptera 
-
+1302/39525 # 0.329 Neuroptera
+248/39525 # 0.006 Araneae  
+124/39525 #0.003 Coleoptera
+93/39525  # 0.002 #Hymenoptera
+186/39525 # 0.0047 #Orthoptera
+124/39525 # 0.003 #Psocodea
+372/39525 # 0.0094 #Trichoptera
 ## START HERE
 
 mmys$Species <- as.factor(mmys$Species) # 126 levels 
-
 
 ## MBRA
 batsbugszB <- batsbugszB %>% mutate(across( c(Sample, bat.sp, BatSpecies, Order, Family, Genus, Species), factor)) 

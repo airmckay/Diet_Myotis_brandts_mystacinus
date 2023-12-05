@@ -156,10 +156,10 @@ histogram(pa$observed.alpha, breaks=10)
 
 
 #Outliers?              
-dotchart(pa$observed.alpha, 
-         main = "observed.alpha",
-         xlab = "Values of variable",
-         ylab = "Order of the data")       #No extreme outliers
+# dotchart(pa$observed.alpha, 
+#          main = "observed.alpha",
+#          xlab = "Values of variable",
+#          ylab = "Order of the data")       #No extreme outliers
 
 pa$bat.sp <- as.factor(pa$bat.sp)
 pa$year <- as.factor(pa$year)
@@ -313,8 +313,11 @@ par(mfrow = c(2, 2))
 plot(m3)
 plot(m3, type=c("p","smooth"), col.line=1)
 
-# only get one plot and they look the same
-
+# 
+library(nlme)
+library(ggResidpanel)
+plot.lme(m1)
+resid_panel(m1, smoother = TRUE, qqbands = TRUE)
 ```
 
 ## Table of model outputs
@@ -336,76 +339,76 @@ summary(modelsums)
 
 write.xlsx(modelsums, file = file.path(output_today, "allfits_bothspecies_alphamodels.xlsx")) 
 
-
+kbl(modelsums)
 ```
 
 
 ```{r}
 ## Make predictions for m3
 
-m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "REML", data = pa)
-
-bat.sp <- rep( c("MBRA", "MMYS", "MMYS"), each = 27060) 
-# So there is the same number of observations and a similar distribution of MBRA and MMYS. 
-
-pframe <- data.frame(as.factor(bat.sp)) # 81180 observations 
-pframe <- pframe %>% rename(bat.sp = as.factor.bat.sp.)
-
-
-pframe$pred.alpha1 <- get_predicted(m3, newdata = pframe)
-
-
-## Make a similar set of predictions for m2 (next lowest AIC that includes year as a fixed effect) 
-
-table(pa$year, pa$bat.sp)
-  #       MBRA  MMYS
-  # 2017  5412 21648
-  # 2018 19844 34276
-
+# m3 <- lme(observed.alpha ~ bat.sp, random= ~1|Sample, method = "REML", data = pa)
 # 
-# 19844/5412
-# 19844+5412
-# 25256/4
-
-#27060 obs of mbra, approximately 3.7 as many obs of 2018 samples as 2017 
-# 27060/4 = 6765
-pframe_b <- pframe %>% filter(bat.sp == "MBRA") %>% droplevels() %>% dplyr::select(bat.sp) 
-pframe_b$year <- rep(c("2017", "2018", "2018", "2018"), each = 6765)
-
-
-# 34276/21648 = 1.583333 , approximately 2 times as many samples from 2018 as 2017
-
-pframe_m <- pframe %>% filter(bat.sp == "MMYS") %>% droplevels() %>% dplyr::select(bat.sp) 
-pframe_m$year <- rep(c("2017", "2018", "2018"), each = 18040)
-
-pframe1 <- dplyr::full_join(pframe_b, pframe_m)# also 81180 observations 
-pframe1$year <- as.factor(pframe1$year) 
-
-#summary(pframe1)
-pframe1$pred.alpha2 <- get_predicted(m2, newdata = pframe1)
-
-######### Predictions for model m1 
-
-# m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data = pa)
-
-pframe1$pred.alpha1 <- get_predicted(m1, newdata = pframe1)
-
-## Look at predicted values 
-pframe$pred.alpha1 <- as.numeric(pframe$pred.alpha1)
-summary(pframe)
- #  bat.sp       pred.alpha1   
- # MBRA:27060   Min.   :14.00  
- # MMYS:54120   1st Qu.:44.00  
- #              Median :50.00  
- #              Mean   :49.62  
- #              3rd Qu.:59.00  
- #              Max.   :72.00  
-
-
-
-pframe1$pred.alpha1 <- as.numeric(pframe1$pred.alpha1) 
-pframe1$pred.alpha2 <- as.numeric(pframe1$pred.alpha2)
-summary(pframe1)
+# bat.sp <- rep( c("MBRA", "MMYS", "MMYS"), each = 27060) 
+# # So there is the same number of observations and a similar distribution of MBRA and MMYS. 
+# 
+# pframe <- data.frame(as.factor(bat.sp)) # 81180 observations 
+# pframe <- pframe %>% rename(bat.sp = as.factor.bat.sp.)
+# 
+# 
+# pframe$pred.alpha1 <- get_predicted(m3, newdata = pframe)
+# 
+# 
+# ## Make a similar set of predictions for m2 (next lowest AIC that includes year as a fixed effect) 
+# 
+# table(pa$year, pa$bat.sp)
+#   #       MBRA  MMYS
+#   # 2017  5412 21648
+#   # 2018 19844 34276
+# 
+# # 
+# # 19844/5412
+# # 19844+5412
+# # 25256/4
+# 
+# #27060 obs of mbra, approximately 3.7 as many obs of 2018 samples as 2017 
+# # 27060/4 = 6765
+# pframe_b <- pframe %>% filter(bat.sp == "MBRA") %>% droplevels() %>% dplyr::select(bat.sp) 
+# pframe_b$year <- rep(c("2017", "2018", "2018", "2018"), each = 6765)
+# 
+# 
+# # 34276/21648 = 1.583333 , approximately 2 times as many samples from 2018 as 2017
+# 
+# pframe_m <- pframe %>% filter(bat.sp == "MMYS") %>% droplevels() %>% dplyr::select(bat.sp) 
+# pframe_m$year <- rep(c("2017", "2018", "2018"), each = 18040)
+# 
+# pframe1 <- dplyr::full_join(pframe_b, pframe_m)# also 81180 observations 
+# pframe1$year <- as.factor(pframe1$year) 
+# 
+# #summary(pframe1)
+# pframe1$pred.alpha2 <- get_predicted(m2, newdata = pframe1)
+# 
+# ######### Predictions for model m1 
+# 
+# # m1 <- lme(observed.alpha ~ bat.sp*year, random= ~1|Sample, data = pa)
+# 
+# pframe1$pred.alpha1 <- get_predicted(m1, newdata = pframe1)
+# 
+# ## Look at predicted values 
+# pframe$pred.alpha1 <- as.numeric(pframe$pred.alpha1)
+# summary(pframe)
+#  #  bat.sp       pred.alpha1   
+#  # MBRA:27060   Min.   :14.00  
+#  # MMYS:54120   1st Qu.:44.00  
+#  #              Median :50.00  
+#  #              Mean   :49.62  
+#  #              3rd Qu.:59.00  
+#  #              Max.   :72.00  
+# 
+# 
+# 
+# pframe1$pred.alpha1 <- as.numeric(pframe1$pred.alpha1) 
+# pframe1$pred.alpha2 <- as.numeric(pframe1$pred.alpha2)
+# summary(pframe1)
  #  bat.sp        year        pred.alpha1     pred.alpha2   
  # MBRA:27060   2017:24805   Min.   :14.00   Min.   :14.00  
  # MMYS:54120   2018:56375   1st Qu.:44.00   1st Qu.:44.00  
@@ -452,7 +455,7 @@ mmys <- pa %>% filter(bat.sp == "MMYS") %>% droplevels()
 # For the facet labels 
 bat.labs <- c("M. brandtii", "M. mystacinus")
 names(bat.labs) <- c("MBRA", "MMYS")
-
+batcolors = c("#b3cde0", "#011f4b")
 
 rawplotmbra <- ggplot(mbra) + 
   geom_violin(aes(x = yearplot, y= observed.alpha), fill = "#b3cde0") +
